@@ -1,0 +1,9 @@
+BasedOnStyle: Google
+Language: Cpp
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
+SpaceBeforeParens: ControlStatements
+AlignAfterOpenBracket: DontAlign
+AlwaysBreakTemplateDeclarations: true
