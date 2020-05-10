@@ -8,6 +8,7 @@
 #include <type_traits>
 
 #include "util/blocking_queue.hpp"
+#include "util/blocking_triple_buffer.hpp"
 #include "util/helpers.hpp"
 #include "util/type_list.hpp"
 
@@ -17,23 +18,23 @@ namespace tdp::detail {
 // Synchronization
 //-------------------------------------------------------------------------------------------------
 
-template <typename Input, typename Callable, typename = void>
+template <template <typename...> class Queue, typename Input, typename Callable, typename = void>
 struct thread_wrapper;
 
 // Normal input
-template <typename... InputArgs, typename Callable>
-struct thread_wrapper<jtc::type_list<InputArgs...>, Callable, void> {
+template <template <typename...> class Queue, typename... InputArgs, typename Callable>
+struct thread_wrapper<Queue, jtc::type_list<InputArgs...>, Callable, void> {
   using input_t = std::tuple<InputArgs...>;
   using output_t = std::invoke_result_t<Callable, InputArgs...>;
 
   Callable _f;
-  util::blocking_queue<input_t>& _input_queue;
-  util::blocking_queue<output_t>& _output_queue;
+  Queue<input_t>& _input_queue;
+  Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
   void operator()() {
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&]() -> bool { return _stop; });
+      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
       auto res = std::apply(_f, std::move(*val));
@@ -44,12 +45,12 @@ struct thread_wrapper<jtc::type_list<InputArgs...>, Callable, void> {
 };
 
 // Producer thread
-template <typename Callable>
-struct thread_wrapper<jtc::type_list<>, Callable> {
+template <template <typename...> class Queue, typename Callable>
+struct thread_wrapper<Queue, jtc::type_list<>, Callable> {
   using output_t = std::invoke_result_t<Callable>;
 
   Callable _f;
-  util::blocking_queue<output_t>& _output_queue;
+  Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
   void operator()() {
@@ -60,15 +61,16 @@ struct thread_wrapper<jtc::type_list<>, Callable> {
 };
 
 // Consumer thread
-template <typename Input, typename Callable>
-struct thread_wrapper<Input, Callable, std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
+template <template <typename...> class Queue, typename Input, typename Callable>
+struct thread_wrapper<Queue, Input, Callable,
+    std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
   Callable _f;
-  util::blocking_queue<Input>& _input_queue;
+  Queue<Input>& _input_queue;
   const std::atomic_bool& _stop;
 
   void operator()() {
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&]() -> bool { return _stop; });
+      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
       _f(std::move(*val));
@@ -77,18 +79,19 @@ struct thread_wrapper<Input, Callable, std::enable_if_t<std::is_same_v<std::invo
 };
 
 // Normal output/middle thread
-template <typename Input, typename Callable>
-struct thread_wrapper<Input, Callable, std::enable_if_t<!std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
+template <template <typename...> class Queue, typename Input, typename Callable>
+struct thread_wrapper<Queue, Input, Callable,
+    std::enable_if_t<!std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
   using output_t = std::invoke_result_t<Callable, Input>;
 
   Callable _f;
-  util::blocking_queue<Input>& _input_queue;
-  util::blocking_queue<output_t>& _output_queue;
+  Queue<Input>& _input_queue;
+  Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
   void operator()() {
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&]() -> bool { return _stop; });
+      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
       auto res = _f(std::move(*val));
@@ -102,21 +105,21 @@ struct thread_wrapper<Input, Callable, std::enable_if_t<!std::is_same_v<std::inv
 // Composition of input and output interfaces
 //-------------------------------------------------------------------------------------------------
 
-template <typename InputType>
+template <template <typename...> class Queue, typename InputType>
 struct pipeline_input;
 
-template <typename... InputArgs>
-struct pipeline_input<jtc::type_list<InputArgs...>> {
+template <template <typename...> class Queue, typename... InputArgs>
+struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
   using storage_t = std::tuple<InputArgs...>;
 
   void input(InputArgs... args) { _input_queue.push(storage_t(std::move(args)...)); }
 
  protected:
-  util::blocking_queue<storage_t> _input_queue;
+  Queue<storage_t> _input_queue;
 };
 
-template <>
-struct pipeline_input<jtc::type_list<>> {
+template <template <typename...> class Queue>
+struct pipeline_input<Queue, jtc::type_list<>> {
   bool running() const noexcept { return !_paused; }
   void pause() noexcept { _paused = true; }
   void resume() noexcept { _paused = false; }
@@ -125,34 +128,34 @@ struct pipeline_input<jtc::type_list<>> {
   std::atomic_bool _paused = false;  // TODO: C++20's atomic_flag::wait
 };
 
-template <typename OutputType>
+template <template <typename...> class Queue, typename OutputType>
 struct pipeline_output {
   bool available() const noexcept { return !_output_queue.empty(); }
 
   OutputType get() noexcept { return _output_queue.pop(); }
 
  protected:
-  util::blocking_queue<OutputType> _output_queue;
+  Queue<OutputType> _output_queue;
 };
 
-template <>
-struct pipeline_output<void> {};
+template <template <typename...> class Queue>
+struct pipeline_output<Queue, void> {};
 
 //-------------------------------------------------------------------------------------------------
 // Pipeline system
 //-------------------------------------------------------------------------------------------------
 
-template <typename InputTypes, typename... Stages>
+template <template <typename...> class Queue, typename InputTypes, typename... Stages>
 struct pipeline;
 
-template <typename... InputArgs, typename... Stages>
-struct pipeline<jtc::type_list<InputArgs...>, Stages...>
-    : pipeline_input<jtc::type_list<InputArgs...>>,
-      pipeline_output<util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>> {
+template <template <typename...> class Queue, typename... InputArgs, typename... Stages>
+struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
+    : pipeline_input<Queue, jtc::type_list<InputArgs...>>,
+      pipeline_output<Queue, util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>> {
   using input_list_t = jtc::type_list<InputArgs...>;
-  using pipeline_input_t = pipeline_input<input_list_t>;
-  using pipeline_output_t = pipeline_output<util::pipeline_return_t<input_list_t, Stages...>>;
-  using tuple_t = util::intermediate_stages_tuple_t<util::blocking_queue, input_list_t, Stages...>;
+  using pipeline_input_t = pipeline_input<Queue, input_list_t>;
+  using pipeline_output_t = pipeline_output<Queue, util::pipeline_return_t<input_list_t, Stages...>>;
+  using tuple_t = util::intermediate_stages_tuple_t<Queue, input_list_t, Stages...>;
   inline static constexpr auto N = sizeof...(Stages);
 
  public:
@@ -186,7 +189,7 @@ struct pipeline<jtc::type_list<InputArgs...>, Stages...>
     using callables = jtc::type_list<Stages...>;
     using callable_t = jtc::list_get_t<callables, I>;
 
-    _threads[I] = std::thread(thread_wrapper<input_t, callable_t>{
+    _threads[I] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
         std::move(std::get<I>(stages)),
         std::get<I - 1>(_queues),
         std::get<I>(_queues),
@@ -208,14 +211,14 @@ struct pipeline<jtc::type_list<InputArgs...>, Stages...>
 
     if constexpr (std::is_same_v<ret_t, void>) {
       // Consumer
-      _threads[N - 1] = std::thread(thread_wrapper<input_t, callable_t>{
+      _threads[N - 1] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
           std::forward<T>(last),
           std::get<N - 2>(_queues),
           _stop,
       });
     } else {
       // User output
-      _threads[N - 1] = std::thread(thread_wrapper<input_t, callable_t>{
+      _threads[N - 1] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
           std::forward<T>(last),
           std::get<N - 2>(_queues),
           pipeline_output_t::_output_queue,
@@ -234,14 +237,14 @@ struct pipeline<jtc::type_list<InputArgs...>, Stages...>
       // Producer
       if constexpr (N == 1) {
         // Producing directly to output
-        _threads[0] = std::thread(thread_wrapper<input_t, callable_t>{
+        _threads[0] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
             std::forward<T>(first),
             pipeline_output_t::_output_queue,
             _stop,
         });
       } else {
         // Producing to another thread
-        _threads[0] = std::thread(thread_wrapper<input_t, callable_t>{
+        _threads[0] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
             std::forward<T>(first),
             std::get<0>(_queues),
             _stop,
@@ -249,7 +252,7 @@ struct pipeline<jtc::type_list<InputArgs...>, Stages...>
       }
     } else {
       // User input
-      _threads[0] = std::thread(thread_wrapper<input_t, callable_t>{
+      _threads[0] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
           std::forward<T>(first),
           pipeline_input_t::_input_queue,
           std::get<0>(_queues),
@@ -285,18 +288,18 @@ consumer(F) -> consumer<std::decay_t<F>>;
 // Construction (intermediary) types
 //-------------------------------------------------------------------------------------------------
 
-template <typename ParameterTypeList, typename... Stages>
+template <template <typename...> class Queue, typename ParameterTypeList, typename... Stages>
 struct partial_pipeline;
 
-template <typename... InputArgs, typename... Stages>
-struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
+template <template <typename...> class Queue, typename... InputArgs, typename... Stages>
+struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
   partial_pipeline(const partial_pipeline&) = delete;
   partial_pipeline(partial_pipeline&&) = delete;
 
   std::tuple<Stages...> _stages;
 
   auto operator>>(const end_type&) && noexcept {
-    return pipeline<jtc::type_list<InputArgs...>, Stages...>{
+    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>{
         std::move(_stages),
     };
   }
@@ -308,7 +311,7 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
     static_assert(std::is_invocable_v<F_, arg_t>);
     static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>);
 
-    return pipeline<jtc::type_list<InputArgs...>, Stages..., F>{
+    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>{
         util::tuple_append(std::move(_stages), std::move(s._f)),
     };
   }
@@ -319,7 +322,7 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
 
-    return partial_pipeline<jtc::type_list<InputArgs...>, Stages..., F_>{
+    return partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F_>{
         {tdp::util::tuple_append(std::move(_stages), std::forward<F>(f))},
     };
   }
@@ -329,29 +332,19 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
 // Execution policies
 //-------------------------------------------------------------------------------------------------
 
-enum class policies {
-  queue,
-  triple_buffer,
-  queue_lock_free,
-  triple_buffer_lock_free,
-};
+template <template <typename...> class Queue>
+struct policy_type {};
 
-template <policies V>
-struct policy_t {
-  static constexpr auto value = V;
-};
+template <typename T>
+using default_queue_t = util::blocking_queue<T>;
 
 //-------------------------------------------------------------------------------------------------
 // Input types
 //-------------------------------------------------------------------------------------------------
 
-template <typename... InputArgs>
-struct input_type {
+template <template <typename...> class Queue, typename... InputArgs>
+struct input_type_base {
   static_assert(sizeof...(InputArgs) > 0);
-
-  constexpr input_type() noexcept {}
-  input_type(const input_type&) = delete;
-  input_type(input_type&&) = delete;
 
   template <typename F>
   constexpr auto operator>>(F&& f) const noexcept {
@@ -359,14 +352,33 @@ struct input_type {
 
     static_assert(std::is_invocable_v<F_, InputArgs...>);
 
-    return partial_pipeline<jtc::type_list<InputArgs...>, F_>{
+    return partial_pipeline<Queue, jtc::type_list<InputArgs...>, F_>{
         {std::forward<F>(f)},
     };
   }
 };
 
-template <typename F>
-struct producer {
+template <template <typename...> class Queue, typename... InputArgs>
+struct input_type_tagged : input_type_base<Queue, InputArgs...> {
+  constexpr input_type_tagged() noexcept {}
+  input_type_tagged(const input_type_tagged&) = delete;
+  input_type_tagged(input_type_tagged&&) = delete;
+};
+
+template <typename... InputArgs>
+struct input_type : input_type_base<default_queue_t, InputArgs...> {
+  constexpr input_type() noexcept {}
+  input_type(const input_type&) = delete;
+  input_type(input_type&&) = delete;
+
+  template <template <typename...> class Queue>
+  constexpr auto operator()(const policy_type<Queue>&) const noexcept {
+    return input_type_tagged<Queue, InputArgs...>{};
+  }
+};
+
+template <template <typename...> class Queue, typename F>
+struct producer_base {
   F _f;
 
   static_assert(std::is_invocable_v<F>);
@@ -377,7 +389,7 @@ struct producer {
     using F_ = std::decay_t<Fc>;
     static_assert(std::is_invocable_v<F_, std::invoke_result_t<F>>);
 
-    return partial_pipeline<jtc::type_list<>, F, F_>{
+    return partial_pipeline<Queue, jtc::type_list<>, F, F_>{
         {std::move(_f), std::forward<Fc>(f)},
     };
   }
@@ -385,15 +397,23 @@ struct producer {
   template <typename Fc>
   constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
     static_assert(std::is_invocable_v<Fc, std::invoke_result_t<F>>);
-    return pipeline<jtc::type_list<>, F, Fc>{
+    return pipeline<Queue, jtc::type_list<>, F, Fc>{
         std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
     };
   }
 
   constexpr auto operator>>(const end_type&) && noexcept {
-    return pipeline<jtc::type_list<>, F>{
+    return pipeline<Queue, jtc::type_list<>, F>{
         std::tuple<F>{std::move(_f)},
     };
+  }
+};
+
+template <typename F>
+struct producer : producer_base<default_queue_t, F> {
+  template <template <typename...> class Queue>
+  constexpr auto operator()(const policy_type<Queue>&) && noexcept {
+    return producer_base<Queue, F>{std::move(producer_base<default_queue_t, F>::_f)};
   }
 };
 
@@ -444,12 +464,12 @@ namespace policy {
 
 /// Triple buffering, discarding missed outputs
 /// Better used when having the most recent data is relevant.
-inline constexpr detail::policy_t<detail::policies::triple_buffer> triple_buffer = {};
+inline constexpr detail::policy_type<util::blocking_triple_buffer> triple_buffer = {};
 
 /// Queue, with "unlimited" storage.
 /// Better for cases where no input can be missed.
 /// Beware of unbalanced pipelines, they can cause high memory usage.
-inline constexpr detail::policy_t<detail::policies::queue> queue = {};
+inline constexpr detail::policy_type<util::blocking_queue> queue = {};
 
 };  // namespace policy
 
