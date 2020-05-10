@@ -51,12 +51,15 @@ struct thread_wrapper<Queue, jtc::type_list<>, Callable> {
 
   Callable _f;
   Queue<output_t>& _output_queue;
+  const std::atomic_bool& _pause;
   const std::atomic_bool& _stop;
 
   void operator()() {
     while (!_stop) {
-      _output_queue.push(_f());
+      if (!_pause)
+        _output_queue.push(_f());
     }
+    _output_queue.wake();
   }
 };
 
@@ -108,6 +111,7 @@ struct thread_wrapper<Queue, Input, Callable,
 template <template <typename...> class Queue, typename InputType>
 struct pipeline_input;
 
+// User input
 template <template <typename...> class Queue, typename... InputArgs>
 struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
   using storage_t = std::tuple<InputArgs...>;
@@ -118,6 +122,7 @@ struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
   Queue<storage_t> _input_queue;
 };
 
+// Producer
 template <template <typename...> class Queue>
 struct pipeline_input<Queue, jtc::type_list<>> {
   bool running() const noexcept { return !_paused; }
@@ -128,6 +133,7 @@ struct pipeline_input<Queue, jtc::type_list<>> {
   std::atomic_bool _paused = false;  // TODO: C++20's atomic_flag::wait
 };
 
+// Regular output
 template <template <typename...> class Queue, typename OutputType>
 struct pipeline_output {
   bool available() const noexcept { return !_output_queue.empty(); }
@@ -138,6 +144,7 @@ struct pipeline_output {
   Queue<OutputType> _output_queue;
 };
 
+// Consumer
 template <template <typename...> class Queue>
 struct pipeline_output<Queue, void> {};
 
@@ -240,6 +247,7 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
         _threads[0] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
             std::forward<T>(first),
             pipeline_output_t::_output_queue,
+            pipeline_input_t::_paused,
             _stop,
         });
       } else {
@@ -247,6 +255,7 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
         _threads[0] = std::thread(thread_wrapper<Queue, input_t, callable_t>{
             std::forward<T>(first),
             std::get<0>(_queues),
+            pipeline_input_t::_paused,
             _stop,
         });
       }

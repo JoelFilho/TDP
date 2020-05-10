@@ -1,8 +1,8 @@
 # TODO 
 
-- [ ] Allow controlling producers
+- [x] Allow controlling producers
 - [ ] Additional concurrent queues
-  - [ ] Blocking triple-buffer
+  - [x] Blocking triple-buffer
   - [ ] Lock-free SPSC queue
   - [ ] Lock-free triple buffering
 - [ ] Non-locking 
