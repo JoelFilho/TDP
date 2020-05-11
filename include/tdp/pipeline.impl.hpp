@@ -18,7 +18,7 @@ namespace tdp::detail {
 // Processing threads
 //-------------------------------------------------------------------------------------------------
 
-template <template <typename...> class Queue, typename Input, typename Callable, typename = void>
+template <template <typename...> class Queue, typename Input, typename Callable, typename = void, typename = void>
 struct thread_worker;
 
 // Normal input
@@ -65,7 +65,8 @@ struct thread_worker<Queue, jtc::type_list<>, Callable> {
 
 // Consumer thread
 template <template <typename...> class Queue, typename Input, typename Callable>
-struct thread_worker<Queue, Input, Callable,
+struct thread_worker<Queue, Input, Callable,                           //
+    std::enable_if_t<!util::is_instance_of_v<Input, jtc::type_list>>,  //
     std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
   Callable _f;
   Queue<Input>& _input_queue;
@@ -83,7 +84,8 @@ struct thread_worker<Queue, Input, Callable,
 
 // Normal output/middle thread
 template <template <typename...> class Queue, typename Input, typename Callable>
-struct thread_worker<Queue, Input, Callable,
+struct thread_worker<Queue, Input, Callable,                           //
+    std::enable_if_t<!util::is_instance_of_v<Input, jtc::type_list>>,  //
     std::enable_if_t<!std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
   using output_t = std::invoke_result_t<Callable, Input>;
 
@@ -420,7 +422,6 @@ struct producer_base {
 
 template <typename F>
 struct producer : producer_base<default_queue_t, F> {
-
   constexpr producer(F f) noexcept : producer_base<default_queue_t, F>{std::move(f)} {}
 
   template <template <typename...> class Queue>

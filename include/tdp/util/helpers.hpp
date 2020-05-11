@@ -131,6 +131,21 @@ using intermediate_stages_tuple_t = typename detail::intermediate_stages_tuple<Q
 
 using detail::result_list_t;
 
+//---------------------------------------------------------------------------------------------------------------------
+// Determines if a class is a specialization of a template
+//
+// Due to how C++ works, it will only work with templates that only accept typenames.
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename Typename, template <typename...> typename Template>
+struct is_instance_of : std::bool_constant<false> {};
+
+template <template <typename...> typename Template, typename... Args>
+struct is_instance_of<Template<Args...>, Template> : std::bool_constant<true> {};
+
+template <typename Typename, template <typename...> typename Template>
+inline constexpr bool is_instance_of_v = is_instance_of<Typename, Template>::value;
+
 }  // namespace tdp::util
 
 #endif
