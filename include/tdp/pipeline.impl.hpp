@@ -420,6 +420,9 @@ struct producer_base {
 
 template <typename F>
 struct producer : producer_base<default_queue_t, F> {
+
+  constexpr producer(F f) noexcept : producer_base<default_queue_t, F>{std::move(f)} {}
+
   template <template <typename...> class Queue>
   constexpr auto operator()(const policy_type<Queue>&) && noexcept {
     return producer_base<Queue, F>{std::move(producer_base<default_queue_t, F>::_f)};
