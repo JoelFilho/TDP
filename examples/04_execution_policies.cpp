@@ -2,10 +2,15 @@
 
 #include "tdp/pipeline.hpp"
 
+//---------------------------------------------------------------------------------------------------------------------
+// This example shows how to use execution policies with TDP
+//
+// An execution policy defines the internal data structure utilized for thread communication in a pipeline.
+//---------------------------------------------------------------------------------------------------------------------
+
 int main() {
-  constexpr auto get_int = []() -> int { return -1; };
   constexpr auto add = [](auto x, auto y) { return x + y; };
-  constexpr auto square = [](auto x) -> decltype(x * x) { return x * x; };
+  constexpr auto square = [](auto x) { return x * x; };
 
   // Queue (default) stores everything it can
   auto pipe = tdp::input<int, int>(tdp::policy::queue) >> add >> square >> tdp::output;

@@ -1,11 +1,23 @@
-add_executable(example example.cpp)
-target_link_libraries(example ${PROJECT_NAME})
+file(GLOB EXAMPLES CONFIGURE_DEPENDS "*.cpp")
 
-add_executable(example2 example2.cpp)
-target_link_libraries(example2 ${PROJECT_NAME})
+if(MSVC)
+  set(WARNINGS /W4 /WX /permissive-)
+elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+  set(WARNINGS -Wall -Wextra -Werror)
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set(WARNINGS -Wall -Wextra -Werror)
+else()
+  message(AUTHOR_WARNING "Warnings for compiling examples not set.")
+endif()
 
-add_executable(example3 example3.cpp)
-target_link_libraries(example3 ${PROJECT_NAME})
+foreach(EXAMPLE_SOURCE IN ITEMS ${EXAMPLES})
+  # Get executable name from source name
+  get_filename_component(EXAMPLE_NAME ${EXAMPLE_SOURCE} NAME_WE)
 
-add_executable(example4 example4.cpp)
-target_link_libraries(example4 ${PROJECT_NAME})
+  # Create the executable, link with the library and set the compiler flags
+  add_executable(${EXAMPLE_NAME} ${EXAMPLE_SOURCE})
+  target_link_libraries(${EXAMPLE_NAME} ${PROJECT_NAME})
+  
+  # Set warnings
+  target_compile_options(${EXAMPLE_NAME} PRIVATE ${WARNINGS})
+endforeach()

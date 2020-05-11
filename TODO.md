@@ -9,6 +9,8 @@
   - [ ] Lock-free triple buffering
 - [x] Non-locking get() interface
 - [x] Apply execution policies
+- [ ] `idle()` interface
+- [ ] Use `std::invoke` wherever applicable
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
 
 ## Project
@@ -18,7 +20,7 @@
   - [ ] Markdown
 - [ ] `static_assert` descriptions
 - [ ] Unit tests
-- [ ] Better examples
+- [x] Better examples
 - [ ] License headers
 - [ ] Improve CMake integration (install interface)
 - [ ] CI

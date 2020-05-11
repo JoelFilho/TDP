@@ -2,19 +2,28 @@
 
 #include "tdp/pipeline.hpp"
 
+//---------------------------------------------------------------------------------------------------------------------
+// This example will show how to use producer threads
+//
+// Similar to how we can 
+//---------------------------------------------------------------------------------------------------------------------
+
 int main() {
   using namespace std::chrono_literals;
 
+  // A producer function. It will be invoked in a loop in the producer thread.
+  // We'll use 10ms to simulate slower input
   constexpr auto get_int = []() -> int {
     std::this_thread::sleep_for(10ms);
     return -1;
   };
 
-  constexpr auto add = [](auto x, auto y) { return x + y; };
-  constexpr auto square = [](auto x) -> decltype(x * x) { return x * x; };
+  constexpr auto square = [](auto x) { return x * x; };
 
-  // Using queue policy. We don't want to miss outputs.
-  auto pipe = tdp::producer{get_int}(tdp::policy::queue) >> square >> tdp::output;
+  // Create a basic pipe responsible for squaring a number produced by our producer
+  auto pipe = tdp::producer{get_int} >> square >> tdp::output;
+
+  // Wait a little, to give the pipeline the opportunity to produce some results
   std::this_thread::sleep_for(200ms);
 
   // We pause the producer and check how many outputs it generated
@@ -35,7 +44,7 @@ int main() {
   pipe.resume();
 
   // Sleep a little
-  std::this_thread::sleep_for(100ms);
+  std::this_thread::sleep_for(50ms);
   std::cout << "pipe.running(): " << std::boolalpha << pipe.running() << "\n";
 
   // The destructor stops the pipeline
