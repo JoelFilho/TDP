@@ -38,10 +38,9 @@ struct result_list;
 template <typename Input, typename... Callables>
 using result_list_t = typename result_list<Input, Callables...>::type;
 
-template <typename Input, typename Callable, typename... Callables>
-struct result_list<Input, Callable, Callables...> {
-  using res_t = std::invoke_result_t<Callable, Input>;
-  using type = jtc::list_concat_t<jtc::type_list<res_t>, result_list_t<res_t, Callables...>>;
+template <typename... InputArgs, typename Callable>
+struct result_list<jtc::type_list<InputArgs...>, Callable> {
+  using type = jtc::type_list<>;
 };
 
 template <typename... InputArgs, typename Callable, typename... Callables>
@@ -50,15 +49,15 @@ struct result_list<jtc::type_list<InputArgs...>, Callable, Callables...> {
   using type = jtc::list_concat_t<jtc::type_list<first_t>, result_list_t<first_t, Callables...>>;
 };
 
+template <typename Input, typename Callable, typename... Callables>
+struct result_list<Input, Callable, Callables...> {
+  using res_t = std::invoke_result_t<Callable, Input>;
+  using type = jtc::list_concat_t<jtc::type_list<res_t>, result_list_t<res_t, Callables...>>;
+};
+
 template <typename Input, typename Callable>
 struct result_list<Input, Callable> {
   using type = jtc::type_list<>;
-};
-
-template <typename... InputArgs, typename Callable>
-struct result_list<jtc::type_list<InputArgs...>, Callable> {
-  using first_t = std::invoke_result_t<Callable, InputArgs...>;
-  using type = jtc::type_list<first_t>;
 };
 
 template <template <typename...> typename Queue, typename ResultList>

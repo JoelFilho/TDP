@@ -139,8 +139,15 @@ struct pipeline_input<Queue, jtc::type_list<>> {
 template <template <typename...> class Queue, typename OutputType>
 struct pipeline_output {
   bool available() const noexcept { return !_output_queue.empty(); }
+  bool empty() const noexcept { return _output_queue.empty(); }
 
   OutputType get() noexcept { return _output_queue.pop(); }
+
+  std::optional<OutputType> try_get() {
+    if (_output_queue.empty())
+      return std::nullopt;
+    return _output_queue.pop();
+  }
 
  protected:
   Queue<OutputType> _output_queue;
@@ -263,12 +270,23 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
       }
     } else {
       // User input
-      _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
-          std::forward<T>(first),
-          pipeline_input_t::_input_queue,
-          std::get<0>(_queues),
-          _stop,
-      });
+      if constexpr (N == 1) {
+        // Feeding directly to output
+        _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+            std::forward<T>(first),
+            pipeline_input_t::_input_queue,
+            pipeline_output_t::_output_queue,
+            _stop,
+        });
+      } else {
+        // Feeding to a second thread
+        _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+            std::forward<T>(first),
+            pipeline_input_t::_input_queue,
+            std::get<0>(_queues),
+            _stop,
+        });
+      }
     }
   }
 

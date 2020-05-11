@@ -7,7 +7,7 @@
   - [x] Blocking triple-buffer
   - [ ] Lock-free SPSC queue
   - [ ] Lock-free triple buffering
-- [ ] Non-locking get() interface
+- [x] Non-locking get() interface
 - [x] Apply execution policies
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
 
