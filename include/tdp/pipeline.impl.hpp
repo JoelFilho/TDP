@@ -127,7 +127,7 @@ struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
 // Producer
 template <template <typename...> class Queue>
 struct pipeline_input<Queue, jtc::type_list<>> {
-  bool running() const noexcept { return !_paused; }
+  [[nodiscard]] bool running() const noexcept { return !_paused; }
   void pause() noexcept { _paused = true; }
   void resume() noexcept { _paused = false; }
 
@@ -138,12 +138,12 @@ struct pipeline_input<Queue, jtc::type_list<>> {
 // Regular output
 template <template <typename...> class Queue, typename OutputType>
 struct pipeline_output {
-  bool available() const noexcept { return !_output_queue.empty(); }
-  bool empty() const noexcept { return _output_queue.empty(); }
+  [[nodiscard]] bool available() const noexcept { return !_output_queue.empty(); }
+  [[nodiscard]] bool empty() const noexcept { return _output_queue.empty(); }
 
-  OutputType get() noexcept { return _output_queue.pop(); }
+  [[nodiscard]] OutputType get() noexcept { return _output_queue.pop(); }
 
-  std::optional<OutputType> try_get() {
+  [[nodiscard]] std::optional<OutputType> try_get() {
     if (_output_queue.empty())
       return std::nullopt;
     return _output_queue.pop();
@@ -165,7 +165,7 @@ template <template <typename...> class Queue, typename InputTypes, typename... S
 struct pipeline;
 
 template <template <typename...> class Queue, typename... InputArgs, typename... Stages>
-struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
+struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     : pipeline_input<Queue, jtc::type_list<InputArgs...>>,
       pipeline_output<Queue, util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>> {
   using input_list_t = jtc::type_list<InputArgs...>;
@@ -188,7 +188,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>
   }
 
   pipeline(const pipeline&) = delete;
-  pipeline(pipeline&&) = default;
+  pipeline(pipeline&&) = delete;
+
   ~pipeline() {
     _stop = true;
     if constexpr (sizeof...(InputArgs) != 0) {
@@ -327,14 +328,14 @@ struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
 
   std::tuple<Stages...> _stages;
 
-  auto operator>>(const end_type&) && noexcept {
+  [[nodiscard]] auto operator>>(const end_type&) && noexcept {
     return pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>{
         std::move(_stages),
     };
   }
 
   template <typename F>
-  auto operator>>(consumer<F>&& s) && noexcept {
+  [[nodiscard]] auto operator>>(consumer<F>&& s) && noexcept {
     using F_ = std::decay_t<F>;
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
@@ -346,7 +347,7 @@ struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
   }
 
   template <typename F>
-  constexpr auto operator>>(F&& f) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(F&& f) && noexcept {
     using F_ = std::decay_t<F>;
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
@@ -376,7 +377,7 @@ struct input_type_base {
   static_assert(sizeof...(InputArgs) > 0);
 
   template <typename F>
-  constexpr auto operator>>(F&& f) const noexcept {
+  [[nodiscard]] constexpr auto operator>>(F&& f) const noexcept {
     using F_ = std::decay_t<F>;
 
     static_assert(std::is_invocable_v<F_, InputArgs...>);
@@ -401,7 +402,7 @@ struct input_type : input_type_base<default_queue_t, InputArgs...> {
   input_type(input_type&&) = delete;
 
   template <template <typename...> class Queue>
-  constexpr auto operator()(const policy_type<Queue>&) const noexcept {
+  [[nodiscard]] constexpr auto operator()(const policy_type<Queue>&) const noexcept {
     return input_type_tagged<Queue, InputArgs...>{};
   }
 };
@@ -414,7 +415,7 @@ struct producer_base {
   static_assert(!std::is_same_v<std::invoke_result_t<F>, void>);
 
   template <typename Fc>
-  constexpr auto operator>>(Fc&& f) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(Fc&& f) && noexcept {
     using F_ = std::decay_t<Fc>;
     static_assert(std::is_invocable_v<F_, std::invoke_result_t<F>>);
 
@@ -424,14 +425,14 @@ struct producer_base {
   }
 
   template <typename Fc>
-  constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
     static_assert(std::is_invocable_v<Fc, std::invoke_result_t<F>>);
     return pipeline<Queue, jtc::type_list<>, F, Fc>{
         std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
     };
   }
 
-  constexpr auto operator>>(const end_type&) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(const end_type&) && noexcept {
     return pipeline<Queue, jtc::type_list<>, F>{
         std::tuple<F>{std::move(_f)},
     };
@@ -443,7 +444,7 @@ struct producer : producer_base<default_queue_t, F> {
   constexpr producer(F f) noexcept : producer_base<default_queue_t, F>{std::move(f)} {}
 
   template <template <typename...> class Queue>
-  constexpr auto operator()(const policy_type<Queue>&) && noexcept {
+  [[nodiscard]] constexpr auto operator()(const policy_type<Queue>&) && noexcept {
     return producer_base<Queue, F>{std::move(producer_base<default_queue_t, F>::_f)};
   }
 };
