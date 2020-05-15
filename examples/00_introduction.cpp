@@ -29,19 +29,19 @@ int main() {
     pipeline.input(3, 6);
 
     // As the pipeline runs, we may want to get an output.
-    // We can do that by using get():
-    int result = pipeline.get();
+    // We can do that by using wait_get():
+    int result = pipeline.wait_get();
 
     // As pipelines work first-in, first out, we know the result should be 4:
     std::cout << "First output: " << result << "\n";
 
     // We can also loop to get a value from the output.
     while(pipeline.available()){
-        std::cout << "Other output: " << pipeline.get() << "\n";
+        std::cout << "Loop output: " << pipeline.wait_get() << "\n";
     }
 
-    // However, only use get() if you know there's anything available.
-    // Otherwise, the program will hang eternally!
+    // However, only use wait_get() if you know there will b anything available.
+    // Otherwise, the thread can hang indefinitely!
     // If you don't want to call available(), use the optional interface:
     std::optional<int> opt_result = pipeline.try_get();
     

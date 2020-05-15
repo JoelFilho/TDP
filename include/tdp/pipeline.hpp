@@ -49,7 +49,7 @@ namespace tdp {
 //       auto combine = [](std::string s, int x){ return s + ": " + std::to_string(x); };
 //       auto pipeline = tdp::input<std::string, int> >> combine >> tdp::output;
 //       pipeline.input("Hello", 5);
-//       std::cout << pipeline.get() << std::endl; // Prints "Hello: 5"
+//       std::cout << pipeline.wait_get() << std::endl; // Prints "Hello: 5"
 //
 // tdp::producer{ function }
 //
@@ -81,13 +81,13 @@ using detail::producer;
 //     auto pipeline = tdp::input<int> >> square >> tdp::output;
 //         // At this point, the pipeline is constructed, and threads start running.
 //     pipeline.input(5); // Provides an input for the pipeline
-//     auto res = pipeline.get(); // Gets the result, equivalent to calling square(5)
+//     auto res = pipeline.wait_get(); // Gets the result, equivalent to calling square(5)
 //
 // Example 2: Using a consumer/sink thread
 //
 //     auto print = [](auto x){ std::cout << x << std::endl; };
 //     auto pipeline = tdp::input<int> >> square >> tdp::consumer{print};
-//         // pipeline.get(); will yield a compiler error.
+//         // pipeline.wait_get(); will yield a compiler error.
 //     pipeline.input(5);
 //         // the value of square(5) will be automatically printed
 //

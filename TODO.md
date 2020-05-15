@@ -8,13 +8,14 @@
   - [ ] Lock-free SPSC queue
   - [ ] Lock-free triple buffering
 - [x] Non-locking `get()` interface
-  - [ ] Rename old interface to make clear it blocks
+  - [x] Rename old interface to make it clearer it blocks
 - [x] Apply execution policies
 - [ ] `idle()` interface
-  - [ ] Refactor `running()` to remove ambiguity
+  - [ ] Rename `running()` to remove ambiguity
 - [ ] Use `std::invoke` wherever applicable
 - [ ] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
 - [ ] Create a move-constructible variant of the pipeline (smart pointer?)
+  - [ ] Restructure the policy interface to support policy + construction type (`operator /`?)
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
   - [x] `[[nodiscard]]` in member functions
   - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`)

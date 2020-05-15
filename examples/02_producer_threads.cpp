@@ -5,7 +5,8 @@
 //---------------------------------------------------------------------------------------------------------------------
 // This example will show how to use producer threads
 //
-// Similar to how we can 
+// Similar to how we can have consumer threads and remove the need to poll for results, we can also create producers.
+// Producers threads will continuously call their functions, eliminating the need for input(...) calls in the pipeline.
 //---------------------------------------------------------------------------------------------------------------------
 
 int main() {
@@ -33,7 +34,7 @@ int main() {
 
   // If it didn't stop, it will never leave this loop
   while (pipe.available()) {
-    [[maybe_unused]] auto res = pipe.get();
+    [[maybe_unused]] auto res = pipe.wait_get();
     ++executions;
   }
 
