@@ -112,15 +112,15 @@ using detail::consumer;
 // When not specified, the default is a blocking queue.
 //
 // The syntax is:
-//   Input(policy) >> ...
+//   Input >> ... >> Output / Policy
 //
 // Examples:
 //    // Use a queue with user-provided input:
-//    auto pipeline = tdp::input<int>(tdp::policy::queue) >> /* functions */ >> tdp::output;
+//    auto pipeline = tdp::input<int> >> functions... >> tdp::output / tdp::policy::queue;
 //
 //    // Use a producer and triple-buffering:
-//    auto pipeline = tdp::producer{ function }(tdp::policy::triple_buffer)
-//                    >> functions >> tdp::output;
+//    auto pipeline = tdp::producer{ function }
+//                    >> functions... >> tdp::output / tdp::policy::triple_buffer;
 //-------------------------------------------------------------------------------------------------
 
 namespace tdp::policy {

@@ -74,8 +74,8 @@ int main() {
 
   // We can set policies to our pipelines!
   // See the Execution Policies example for more details.
-  auto p9 = tdp::input<int, int>(tdp::policy::queue) >> add() >> square() >> tdp::output;
-  auto p10 = tdp::input<int>(tdp::policy::triple_buffer) >> square() >> tdp::output;
+  auto p9 = tdp::input<int, int> >> add() >> square() >> tdp::output / tdp::policy::queue;
+  auto p10 = tdp::input<int> >> square() >> tdp::output / tdp::policy::triple_buffer;
 
   // Here, we see the underlying types utilized. And why we should use auto in this library.
   print_type(p1);
@@ -92,7 +92,7 @@ int main() {
 
 //---------------------------------------------------------------------------------------------------------------------
 // Don't worry about this function. It's not part of the example, only its output is.
-// 
+//
 // This was tested on GCC 7/8 (Linux), Clang 8/9 (Linux) and MSVC 2017/2019 (Windows).
 // Also works with Clang + VS 2019. Guaranteed not to work on Clang + VS 2017.
 // Come on, don't look at me with that face. It's an example, you're probably not even running it.

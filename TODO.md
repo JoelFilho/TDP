@@ -15,7 +15,7 @@
 - [ ] Use `std::invoke` wherever applicable
 - [ ] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
 - [ ] Create a move-constructible variant of the pipeline (smart pointer?)
-  - [ ] Restructure the policy interface to support policy + construction type (`operator /`?)
+  - [x] Restructure the policy interface to support policy + construction type (`operator /`?)
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
   - [x] `[[nodiscard]]` in member functions
   - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`)

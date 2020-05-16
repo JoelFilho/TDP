@@ -11,9 +11,9 @@
 struct consume {
   // We will print a count of how many times it consumed something
   int count = 0;
-  
+
   ~consume() {
-    if (count) // Stuff is move-constructed, so we may have a few more destruction calls...
+    if (count)  // Stuff is move-constructed, so we may have a few more destruction calls...
       std::cout << "The consumer was called " << count << " times.\n";
   }
 
@@ -38,7 +38,7 @@ int main() {
   // When the processing is faster than the production, it's usually a good idea to use a blocking policy.
   // And, as a queue will not be bigger than one, we can use a buffer instead.
   // Experiment changing it to a queue and notice it won't make a difference in this case.
-  auto pipe = tdp::producer{get_int}(tdp::policy::triple_buffer) >> square >> tdp::consumer{consume()};
+  auto pipe = tdp::producer{get_int} >> square >> tdp::consumer{consume()} / tdp::policy::triple_buffer;
 
   // We can do anything in this thread, including sleep. The pipeline is running on
   std::this_thread::sleep_for(200ms);

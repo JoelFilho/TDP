@@ -6,6 +6,14 @@
 // This example shows how to use execution policies with TDP
 //
 // An execution policy defines the internal data structure utilized for thread communication in a pipeline.
+//
+// To use an execution policy, you can define them with an '/' after the output.
+//
+// The currently supported policies are:
+//  - tdp::policy::queue - Uses a blocking queue to store the values between threads
+//  - tdp::policy::triple_buffer - Uses a blocking triple buffer to store values
+//
+// This tutorial shows the difference between these policies and how to use them in a pipeline.
 //---------------------------------------------------------------------------------------------------------------------
 
 int main() {
@@ -13,10 +21,10 @@ int main() {
   constexpr auto square = [](auto x) { return x * x; };
 
   // Queue (default) stores everything it can
-  auto pipe = tdp::input<int, int>(tdp::policy::queue) >> add >> square >> tdp::output;
+  auto pipe = tdp::input<int, int> >> add >> square >> tdp::output / tdp::policy::queue;
 
   // Triple buffering only has capacity of one
-  auto pipe2 = tdp::input<int, int>(tdp::policy::triple_buffer) >> add >> square >> tdp::output;
+  auto pipe2 = tdp::input<int, int> >> add >> square >> tdp::output / tdp::policy::triple_buffer;
 
   // Provide both pipelines with 25 input values
   for (int i = 0; i < 5; i++) {
