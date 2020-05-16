@@ -298,6 +298,16 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
 };
 
 //-------------------------------------------------------------------------------------------------
+// Execution policies
+//-------------------------------------------------------------------------------------------------
+
+template <template <typename...> class Queue>
+struct policy_type {};
+
+template <typename T>
+using default_queue_t = util::blocking_queue<T>;
+
+//-------------------------------------------------------------------------------------------------
 // Output types
 //-------------------------------------------------------------------------------------------------
 
@@ -318,18 +328,18 @@ consumer(F) -> consumer<std::decay_t<F>>;
 // Construction (intermediary) types
 //-------------------------------------------------------------------------------------------------
 
-template <template <typename...> class Queue, typename ParameterTypeList, typename... Stages>
+template <typename ParameterTypeList, typename... Stages>
 struct partial_pipeline;
 
-template <template <typename...> class Queue, typename... InputArgs, typename... Stages>
-struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
+template <typename... InputArgs, typename... Stages>
+struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   partial_pipeline(const partial_pipeline&) = delete;
   partial_pipeline(partial_pipeline&&) = delete;
 
   std::tuple<Stages...> _stages;
 
   [[nodiscard]] auto operator>>(const end_type&) && noexcept {
-    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>{
+    return pipeline<default_queue_t, jtc::type_list<InputArgs...>, Stages...>{
         std::move(_stages),
     };
   }
@@ -341,7 +351,7 @@ struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
     static_assert(std::is_invocable_v<F_, arg_t>);
     static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>);
 
-    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>{
+    return pipeline<default_queue_t, jtc::type_list<InputArgs...>, Stages..., F>{
         util::tuple_append(std::move(_stages), std::move(s._f)),
     };
   }
@@ -352,29 +362,24 @@ struct partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> {
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
 
-    return partial_pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F_>{
+    return partial_pipeline<jtc::type_list<InputArgs...>, Stages..., F_>{
         {tdp::util::tuple_append(std::move(_stages), std::forward<F>(f))},
     };
   }
 };
 
 //-------------------------------------------------------------------------------------------------
-// Execution policies
-//-------------------------------------------------------------------------------------------------
-
-template <template <typename...> class Queue>
-struct policy_type {};
-
-template <typename T>
-using default_queue_t = util::blocking_queue<T>;
-
-//-------------------------------------------------------------------------------------------------
 // Input types
 //-------------------------------------------------------------------------------------------------
 
-template <template <typename...> class Queue, typename... InputArgs>
-struct input_type_base {
+template <typename... InputArgs>
+struct input_type {
   static_assert(sizeof...(InputArgs) > 0);
+  static_assert(!(std::is_reference_v<InputArgs> || ...));
+
+  constexpr input_type() noexcept {}
+  input_type(const input_type&) = delete;
+  input_type(input_type&&) = delete;
 
   template <typename F>
   [[nodiscard]] constexpr auto operator>>(F&& f) const noexcept {
@@ -382,33 +387,14 @@ struct input_type_base {
 
     static_assert(std::is_invocable_v<F_, InputArgs...>);
 
-    return partial_pipeline<Queue, jtc::type_list<InputArgs...>, F_>{
+    return partial_pipeline<jtc::type_list<InputArgs...>, F_>{
         {std::forward<F>(f)},
     };
   }
 };
 
-template <template <typename...> class Queue, typename... InputArgs>
-struct input_type_tagged : input_type_base<Queue, InputArgs...> {
-  constexpr input_type_tagged() noexcept {}
-  input_type_tagged(const input_type_tagged&) = delete;
-  input_type_tagged(input_type_tagged&&) = delete;
-};
-
-template <typename... InputArgs>
-struct input_type : input_type_base<default_queue_t, InputArgs...> {
-  constexpr input_type() noexcept {}
-  input_type(const input_type&) = delete;
-  input_type(input_type&&) = delete;
-
-  template <template <typename...> class Queue>
-  [[nodiscard]] constexpr auto operator()(const policy_type<Queue>&) const noexcept {
-    return input_type_tagged<Queue, InputArgs...>{};
-  }
-};
-
-template <template <typename...> class Queue, typename F>
-struct producer_base {
+template <typename F>
+struct producer {
   F _f;
 
   static_assert(std::is_invocable_v<F>);
@@ -419,7 +405,7 @@ struct producer_base {
     using F_ = std::decay_t<Fc>;
     static_assert(std::is_invocable_v<F_, std::invoke_result_t<F>>);
 
-    return partial_pipeline<Queue, jtc::type_list<>, F, F_>{
+    return partial_pipeline<jtc::type_list<>, F, F_>{
         {std::move(_f), std::forward<Fc>(f)},
     };
   }
@@ -427,25 +413,15 @@ struct producer_base {
   template <typename Fc>
   [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
     static_assert(std::is_invocable_v<Fc, std::invoke_result_t<F>>);
-    return pipeline<Queue, jtc::type_list<>, F, Fc>{
+    return pipeline<default_queue_t, jtc::type_list<>, F, Fc>{
         std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
     };
   }
 
   [[nodiscard]] constexpr auto operator>>(const end_type&) && noexcept {
-    return pipeline<Queue, jtc::type_list<>, F>{
+    return pipeline<default_queue_t, jtc::type_list<>, F>{
         std::tuple<F>{std::move(_f)},
     };
-  }
-};
-
-template <typename F>
-struct producer : producer_base<default_queue_t, F> {
-  constexpr producer(F f) noexcept : producer_base<default_queue_t, F>{std::move(f)} {}
-
-  template <template <typename...> class Queue>
-  [[nodiscard]] constexpr auto operator()(const policy_type<Queue>&) && noexcept {
-    return producer_base<Queue, F>{std::move(producer_base<default_queue_t, F>::_f)};
   }
 };
 
