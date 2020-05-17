@@ -3,6 +3,7 @@
 
 #include <array>
 #include <atomic>
+#include <functional>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -57,7 +58,7 @@ struct thread_worker<Queue, jtc::type_list<>, Callable> {
   void operator()() {
     while (!_stop) {
       if (!_pause)
-        _output_queue.push(_f());
+        _output_queue.push(std::invoke(_f));
     }
     _output_queue.wake();
   }
@@ -77,7 +78,7 @@ struct thread_worker<Queue, Input, Callable,                           //
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
-      _f(std::move(*val));
+      std::invoke(_f, std::move(*val));
     }
   }
 };
@@ -99,7 +100,7 @@ struct thread_worker<Queue, Input, Callable,                           //
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
-      auto res = _f(std::move(*val));
+      auto res = std::invoke(_f, std::move(*val));
       _output_queue.push(std::move(res));
     }
     _output_queue.wake();
