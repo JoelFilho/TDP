@@ -136,4 +136,32 @@ inline constexpr detail::policy_type<util::blocking_queue> queue = {};
 
 };  // namespace tdp::policy
 
+//-------------------------------------------------------------------------------------------------
+// Smart Pointer Wrappers
+//
+// Pipelines aren't either copy-constructible nor move-constructible.
+// In order to create a pipeline that can change ownership or can have shared ownership,
+// one should use these wrappers.
+//
+// The syntax is:
+//   Input >> ... >> Output / Wrapper
+//   Input >> ... >> Output / Policy / Wrapper
+//
+// TDP provide two wrappers:
+//   tdp::as_unique_ptr: Uses std::unique_ptr
+//   tdp::as_shared_ptr: Uses std::shared_ptr
+//
+// See the "Smart Pointer Wrappers" example for more details.
+//-------------------------------------------------------------------------------------------------
+
+namespace tdp {
+
+/// Creates a pipeline inside an std::unique_ptr
+inline constexpr detail::wrapper_type<std::unique_ptr> as_unique_ptr = {};
+
+/// Creates a pipeline inside an std::shared_ptr
+inline constexpr detail::wrapper_type<std::shared_ptr> as_shared_ptr = {};
+
+}  // namespace tdp
+
 #endif

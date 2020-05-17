@@ -308,18 +308,43 @@ template <typename T>
 using default_queue_t = util::blocking_queue<T>;
 
 //-------------------------------------------------------------------------------------------------
+// Wrapper Types
+//-------------------------------------------------------------------------------------------------
+
+template <template <typename...> class Wrapper>
+struct wrapper_type {};
+
+template <typename...>
+struct null_wrapper {};
+
+//-------------------------------------------------------------------------------------------------
 // Output types
 //-------------------------------------------------------------------------------------------------
+
+template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
+struct output_tagged {
+  OutputType _data;
+};
 
 template <typename OutputType, template <typename...> class Queue>
 struct output_with_policy {
   OutputType _data;
+
+  template <template <typename...> class Wrapper>
+  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) && noexcept {
+    return output_tagged<OutputType, Queue, Wrapper>{std::move(_data)};
+  }
 };
 
 struct end_type {
   template <template <typename...> class Queue>
-  constexpr auto operator/(const policy_type<Queue>) const noexcept {
+  [[nodiscard]] constexpr auto operator/(policy_type<Queue>) const noexcept {
     return output_with_policy<end_type, Queue>{};
+  }
+
+  template <template <typename...> class Wrapper>
+  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) const noexcept {
+    return output_tagged<end_type, default_queue_t, Wrapper>{};
   }
 };
 
@@ -328,8 +353,13 @@ struct consumer {
   F _f;
 
   template <template <typename...> class Queue>
-  constexpr auto operator/(const policy_type<Queue>) && noexcept {
-    return output_with_policy<consumer, Queue>{std::move(_f)};
+  [[nodiscard]] constexpr auto operator/(policy_type<Queue>) && noexcept {
+    return output_with_policy<consumer, Queue>{std::move(*this)};
+  }
+
+  template <template <typename...> class Wrapper>
+  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) && noexcept {
+    return output_tagged<consumer, default_queue_t, Wrapper>{std::move(*this)};
   }
 };
 
@@ -350,28 +380,52 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
 
   std::tuple<Stages...> _stages;
 
-  template <template <typename...> class Queue = default_queue_t>
-  [[nodiscard]] auto operator>>(const end_type&) && noexcept {
-    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>{
-        std::move(_stages),
-    };
+  template <template <typename...> class Queue = default_queue_t, template <typename...> class Wrapper = null_wrapper>
+  [[nodiscard]] auto operator>>(end_type) && noexcept {
+    using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>;
+    if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
+      return pipeline_t{
+          std::move(_stages),
+      };
+    } else {
+      return Wrapper<pipeline_t>{
+          new pipeline_t{
+              std::move(_stages),
+          },
+      };
+    }
   }
 
-  template <template <typename...> class Queue = default_queue_t, typename F>
+  template <template <typename...> class Queue = default_queue_t,  //
+      template <typename...> class Wrapper = null_wrapper,         //
+      typename F>
   [[nodiscard]] auto operator>>(consumer<F>&& s) && noexcept {
     using F_ = std::decay_t<F>;
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
     static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>);
-
-    return pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>{
-        util::tuple_append(std::move(_stages), std::move(s._f)),
-    };
+    using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>;
+    if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
+      return pipeline_t{
+          util::tuple_append(std::move(_stages), std::move(s._f)),
+      };
+    } else {
+      return Wrapper<pipeline_t>{
+          new pipeline_t{
+              util::tuple_append(std::move(_stages), std::move(s._f)),
+          },
+      };
+    }
   }
 
   template <typename OutputType, template <typename...> class Queue>
   [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) && noexcept {
     return std::move(*this).template operator>><Queue>(std::move(output._data));
+  }
+
+  template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) && noexcept {
+    return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
   }
 
   template <typename F>
@@ -428,24 +482,51 @@ struct producer {
     };
   }
 
-  template <template <typename...> class Queue = default_queue_t, typename Fc>
+  template <template <typename...> class Queue = default_queue_t,  //
+      template <typename...> class Wrapper = null_wrapper,         //
+      typename Fc>
   [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
     static_assert(std::is_invocable_v<Fc, std::invoke_result_t<F>>);
-    return pipeline<default_queue_t, jtc::type_list<>, F, Fc>{
-        std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
-    };
+    using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F, Fc>;
+
+    if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
+      return pipeline_t{
+          std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
+      };
+    } else {
+      return Wrapper<pipeline_t>{
+          new pipeline_t{
+              std::tuple<F, Fc>{std::move(_f), std::move(c._f)},
+          },
+      };
+    }
   }
 
-  template <template <typename...> class Queue = default_queue_t>
-  [[nodiscard]] constexpr auto operator>>(const end_type&) && noexcept {
-    return pipeline<default_queue_t, jtc::type_list<>, F>{
-        std::tuple<F>{std::move(_f)},
-    };
+  template <template <typename...> class Queue = default_queue_t,  //
+      template <typename...> class Wrapper = null_wrapper>
+  [[nodiscard]] constexpr auto operator>>(end_type) && noexcept {
+    using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F>;
+    if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
+      return pipeline_t{
+          std::tuple<F>{std::move(_f)},
+      };
+    } else {
+      return Wrapper<pipeline_t>{
+          new pipeline_t{
+              std::tuple<F>{std::move(_f)},
+          },
+      };
+    }
   }
 
   template <typename OutputType, template <typename...> class Queue>
   [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) && noexcept {
     return std::move(*this).template operator>><Queue>(std::move(output._data));
+  }
+
+  template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) && noexcept {
+    return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
   }
 };
 

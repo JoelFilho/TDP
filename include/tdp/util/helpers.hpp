@@ -145,6 +145,21 @@ struct is_instance_of<Template<Args...>, Template> : std::bool_constant<true> {}
 template <typename Typename, template <typename...> typename Template>
 inline constexpr bool is_instance_of_v = is_instance_of<Typename, Template>::value;
 
+//---------------------------------------------------------------------------------------------------------------------
+// Determines whether two class templates are the same
+//
+// Just like is_instance_of, it won't work with templates that accept NTTPs.
+//---------------------------------------------------------------------------------------------------------------------
+
+template <template <typename...> typename T1, template <typename...> typename T2>
+struct is_same_template : std::bool_constant<false> {};
+
+template <template <typename...> typename T>
+struct is_same_template<T, T> : std::bool_constant<true> {};
+
+template <template <typename...> typename T1, template <typename...> typename T2>
+inline constexpr bool is_same_template_v = is_same_template<T1, T2>::value;
+
 }  // namespace tdp::util
 
 #endif
