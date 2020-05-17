@@ -13,7 +13,7 @@
 - [ ] `idle()` interface
   - [ ] Rename `running()` to remove ambiguity
 - [ ] Use `std::invoke` wherever applicable
-- [ ] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
+- [x] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
 - [x] Create a move-constructible variant of the pipeline (smart pointer?)
   - [x] Restructure the policy interface to support policy + construction type (`operator /`?)
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness

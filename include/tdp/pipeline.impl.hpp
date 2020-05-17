@@ -383,6 +383,7 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   template <template <typename...> class Queue = default_queue_t, template <typename...> class Wrapper = null_wrapper>
   [[nodiscard]] auto operator>>(end_type) && noexcept {
     using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>;
+
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
       return pipeline_t{
           std::move(_stages),
@@ -404,7 +405,9 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
     static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>);
+
     using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>;
+
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
       return pipeline_t{
           util::tuple_append(std::move(_stages), std::move(s._f)),
@@ -434,6 +437,10 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
 
+    using ret_t = std::invoke_result_t<F_, arg_t>;
+    static_assert(!std::is_reference_v<ret_t>);
+    static_assert(!std::is_same_v<ret_t, void>);
+
     return partial_pipeline<jtc::type_list<InputArgs...>, Stages..., F_>{
         {tdp::util::tuple_append(std::move(_stages), std::forward<F>(f))},
     };
@@ -459,6 +466,10 @@ struct input_type {
 
     static_assert(std::is_invocable_v<F_, InputArgs...>);
 
+    using ret_t = std::invoke_result_t<F_, InputArgs...>;
+    static_assert(!std::is_reference_v<ret_t>);
+    static_assert(!std::is_same_v<ret_t, void>);
+
     return partial_pipeline<jtc::type_list<InputArgs...>, F_>{
         {std::forward<F>(f)},
     };
@@ -470,12 +481,19 @@ struct producer {
   F _f;
 
   static_assert(std::is_invocable_v<F>);
-  static_assert(!std::is_same_v<std::invoke_result_t<F>, void>);
+
+  using produced_t = std::invoke_result_t<F>;
+  static_assert(!std::is_same_v<produced_t, void>);
+  static_assert(!std::is_reference_v<produced_t>);
 
   template <typename Fc>
   [[nodiscard]] constexpr auto operator>>(Fc&& f) && noexcept {
     using F_ = std::decay_t<Fc>;
-    static_assert(std::is_invocable_v<F_, std::invoke_result_t<F>>);
+    static_assert(std::is_invocable_v<F_, produced_t>);
+
+    using ret_t = std::invoke_result_t<F_, produced_t>;
+    static_assert(!std::is_reference_v<ret_t>);
+    static_assert(!std::is_same_v<ret_t, void>);
 
     return partial_pipeline<jtc::type_list<>, F, F_>{
         {std::move(_f), std::forward<Fc>(f)},
@@ -486,7 +504,11 @@ struct producer {
       template <typename...> class Wrapper = null_wrapper,         //
       typename Fc>
   [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
-    static_assert(std::is_invocable_v<Fc, std::invoke_result_t<F>>);
+    static_assert(std::is_invocable_v<Fc, produced_t>);
+
+    using ret_t = std::invoke_result_t<Fc, produced_t>;
+    static_assert(std::is_same_v<ret_t, void>);
+
     using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F, Fc>;
 
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
@@ -506,6 +528,7 @@ struct producer {
       template <typename...> class Wrapper = null_wrapper>
   [[nodiscard]] constexpr auto operator>>(end_type) && noexcept {
     using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F>;
+
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
       return pipeline_t{
           std::tuple<F>{std::move(_f)},
