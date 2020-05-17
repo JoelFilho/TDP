@@ -40,7 +40,7 @@ int main() {
   // Experiment changing it to a queue and notice it won't make a difference in this case.
   auto pipe = tdp::producer{get_int} >> square >> tdp::consumer{consume()} / tdp::policy::triple_buffer;
 
-  // We can do anything in this thread, including sleep. The pipeline is running on
+  // We can do anything in this thread, including sleep. The pipeline keeps running on its threads.
   std::this_thread::sleep_for(200ms);
 
   // We exit the program.

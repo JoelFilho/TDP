@@ -46,8 +46,8 @@ int main() {
   auto producer_pipe_shared = tdp::producer{get_int} >> tdp::consumer{null_consumer} / tdp::as_shared_ptr;
   auto producer_pipe_unique = tdp::producer{get_int} >> tdp::output / tdp::as_unique_ptr;
 
-  std::cout << "Producers running? " << std::boolalpha << producer_pipe_shared->running() << " and "
-            << producer_pipe_unique->running() << std::endl;
+  std::cout << "Producers running? " << std::boolalpha << producer_pipe_shared->producing() << " and "
+            << producer_pipe_unique->producing() << std::endl;
 
   // As they're unique pointers, lifetimes will also end at the end of the scope!
 }

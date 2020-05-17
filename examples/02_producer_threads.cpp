@@ -39,14 +39,14 @@ int main() {
   }
 
   std::cout << "Runs before pause: " << executions << "\n";
-  std::cout << "pipe.running(): " << std::boolalpha << pipe.running() << "\n";
+  std::cout << "pipe.producing(): " << std::boolalpha << pipe.producing() << "\n";
 
   // We now resume execution
   pipe.resume();
 
   // Sleep a little
   std::this_thread::sleep_for(50ms);
-  std::cout << "pipe.running(): " << std::boolalpha << pipe.running() << "\n";
+  std::cout << "pipe.producing(): " << std::boolalpha << pipe.producing() << "\n";
 
   // The destructor stops the pipeline
 }

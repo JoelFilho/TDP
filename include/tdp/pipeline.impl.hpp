@@ -128,7 +128,7 @@ struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
 // Producer
 template <template <typename...> class Queue>
 struct pipeline_input<Queue, jtc::type_list<>> {
-  [[nodiscard]] bool running() const noexcept { return !_paused; }
+  [[nodiscard]] bool producing() const noexcept { return !_paused; }
   void pause() noexcept { _paused = true; }
   void resume() noexcept { _paused = false; }
 

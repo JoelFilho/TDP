@@ -58,7 +58,7 @@ namespace tdp {
 //     function must be callable without arguments and return a non-void type.
 //
 //     A pipeline created with a producer doesn't have the input(args...) member function.
-//     Instead, it provides pause(), resume() and running() in its interface.
+//     Instead, it provides pause(), resume() and producing() in its interface.
 //
 //-------------------------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@
   - [x] Rename old interface to make it clearer it blocks
 - [x] Apply execution policies
 - [ ] `idle()` interface
-  - [ ] Rename `running()` to remove ambiguity
+  - [x] Rename `running()` to remove ambiguity
 - [x] Use `std::invoke` wherever applicable
 - [x] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
 - [x] Create a move-constructible variant of the pipeline (smart pointer?)
