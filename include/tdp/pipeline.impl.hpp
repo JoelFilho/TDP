@@ -144,7 +144,7 @@ struct pipeline_output {
 
   [[nodiscard]] OutputType wait_get() noexcept { return _output_queue.pop(); }
 
-  [[nodiscard]] std::optional<OutputType> try_get() {
+  [[nodiscard]] std::optional<OutputType> try_get() noexcept {
     if (_output_queue.empty())
       return std::nullopt;
     return _output_queue.pop();

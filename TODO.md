@@ -1,6 +1,6 @@
-# TODO
+# TDP's To-do list: Alpha release
 
-## Functional
+## Functionality
 
 - [x] Allow controlling producers
 - [ ] Additional concurrent queues
@@ -14,13 +14,15 @@
   - [x] Rename `running()` to remove ambiguity
 - [x] Use `std::invoke` wherever applicable
 - [x] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
+  - [ ] Allow reference output, but use `decay_t` for storage and propagation?
 - [x] Create a move-constructible variant of the pipeline (smart pointer?)
   - [x] Restructure the policy interface to support policy + construction type (`operator /`?)
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
   - [x] `[[nodiscard]]` in member functions
-  - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`)
-  - [ ] `const`
-  - [ ] `noexcept`: Considering not having conditional `noexcept`
+  - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`: [Bug report](https://bugs.llvm.org/show_bug.cgi?id=45942))
+  - [x] `const`
+  - [ ] `noexcept`: Will not have conditional `noexcept` for first release. If it throws, it terminates.
+- [ ] Allow `input >> consumer`, symmetric to `producer >> output`?
 
 ## Project
 
@@ -41,4 +43,3 @@
 - Forking (task parallelism)
 - Tuple adapter: calling `std::apply` in a tuple return in the pipeline
 - Load analysis (possible issue: false sharing)
-- Shared pointer wrapper
