@@ -38,7 +38,7 @@ struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable, void> {
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
-      auto res = std::apply(_f, std::move(*val));
+      auto&& res = std::apply(_f, std::move(*val));
       _output_queue.push(std::move(res));
     }
     _output_queue.wake();
@@ -100,7 +100,7 @@ struct thread_worker<Queue, Input, Callable,                           //
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
         break;
-      auto res = std::invoke(_f, std::move(*val));
+      auto&& res = std::invoke(_f, std::move(*val));
       _output_queue.push(std::move(res));
     }
     _output_queue.wake();
