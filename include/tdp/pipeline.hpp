@@ -129,6 +129,10 @@ namespace tdp::policy {
 /// Better used when having the most recent data is more relevant, e.g. real-time video.
 inline constexpr detail::policy_type<util::blocking_triple_buffer> triple_buffer = {};
 
+/// A lock-free implementation of the triple buffer policy
+/// Better used when the producer is faster than the pipeline stages, i.e. there's no wait.
+inline constexpr detail::policy_type<util::lock_free_triple_buffer> triple_buffer_lockfree = {};
+
 /// Queue, with "unlimited" storage.
 /// Better for cases where no input can be missed.
 /// Beware of unbalanced pipelines, they can cause high memory usage.

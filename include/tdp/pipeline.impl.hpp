@@ -11,6 +11,7 @@
 #include "util/blocking_queue.hpp"
 #include "util/blocking_triple_buffer.hpp"
 #include "util/helpers.hpp"
+#include "util/lock_free_triple_buffer.hpp"
 #include "util/type_list.hpp"
 
 namespace tdp::detail {

@@ -6,7 +6,9 @@
 - [ ] Additional concurrent queues
   - [x] Blocking triple-buffer
   - [ ] Lock-free SPSC queue
-  - [ ] Lock-free triple buffering
+    - [ ] Bounded
+    - [ ] Unbounded
+  - [x] Lock-free triple buffering
 - [x] Non-locking `get()` interface
   - [x] Rename old interface to make it clearer it blocks
 - [x] Apply execution policies
@@ -43,3 +45,4 @@
 - Forking (task parallelism)
 - Tuple adapter: calling `std::apply` in a tuple return in the pipeline
 - Load analysis (possible issue: false sharing)
+- Shared ownership wrapper for all 3 pipeline stage types

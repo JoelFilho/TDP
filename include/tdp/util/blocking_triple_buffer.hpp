@@ -1,6 +1,7 @@
 #ifndef TDP_BLOCKING_TRIPLE_BUFFER_HPP
 #define TDP_BLOCKING_TRIPLE_BUFFER_HPP
 
+#include <array>
 #include <condition_variable>
 #include <mutex>
 #include <optional>
