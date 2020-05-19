@@ -24,12 +24,13 @@
   - [x] `const`
   - [ ] `noexcept`: Will not have conditional `noexcept` for first release. If it throws, it terminates.
 - [ ] Allow `input >> consumer`, symmetric to `producer >> output`?
+- [ ] `empty_input()` interface?
 
 ## Project
 
-- [ ] Documentation
+- [x] Documentation (ish)
   - [x] Comments
-  - [ ] Markdown
+  - [x] Markdown
 - [ ] `static_assert` descriptions
 - [x] Unit tests
 - [x] Better examples
