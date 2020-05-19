@@ -34,7 +34,7 @@
 - [x] Unit tests
 - [x] Better examples
 - [ ] License headers
-- [ ] Improve CMake integration (install interface)
+- [x] Improve CMake integration (install interface)
 - [ ] CI
 - [ ] Add to VCPKG/Conan when feature complete
 
