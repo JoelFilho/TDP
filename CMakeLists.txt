@@ -15,8 +15,15 @@ target_compile_features(${PROJECT_NAME} INTERFACE cxx_std_17)
 
 target_link_libraries(${PROJECT_NAME} INTERFACE Threads::Threads)
 
-option(BUILD_EXAMPLES "Build example code" ON)
+# Examples and Unit testing
+option(TDP_BUILD_EXAMPLES "Build TDP examples" ON)
+option(TDP_BUILD_TESTS "Build TDP unit tests" ON)
 
-if(${BUILD_EXAMPLES})
+if(${TDP_BUILD_EXAMPLES})
   add_subdirectory(examples)
+endif()
+
+if(${TDP_BUILD_TESTS})
+  enable_testing()
+  add_subdirectory(tests)
 endif()
