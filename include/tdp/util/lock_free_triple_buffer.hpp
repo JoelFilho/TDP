@@ -1,3 +1,10 @@
+// The Darkest Pipeline - https://github.com/JoelFilho/TDP
+// lock_free_triple_buffer.hpp - A lock-free implementation of a triple buffer
+
+// Copyright Joel P. C. Filho 2020 - 2020
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.md or copy at https://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TDP_LOCK_FREE_TRIPLE_BUFFER_HPP
 #define TDP_LOCK_FREE_TRIPLE_BUFFER_HPP
 

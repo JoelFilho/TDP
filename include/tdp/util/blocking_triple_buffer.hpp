@@ -1,3 +1,10 @@
+// The Darkest Pipeline - https://github.com/JoelFilho/TDP
+// blocking_triple_buffer.hpp - A blocking triple buffer implementation
+
+// Copyright Joel P. C. Filho 2020 - 2020
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.md or copy at https://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TDP_BLOCKING_TRIPLE_BUFFER_HPP
 #define TDP_BLOCKING_TRIPLE_BUFFER_HPP
 

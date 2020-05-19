@@ -34,7 +34,7 @@
 - [ ] `static_assert` descriptions
 - [x] Unit tests
 - [x] Better examples
-- [ ] License headers
+- [x] License headers
 - [x] Improve CMake integration (install interface)
 - [ ] CI
 - [ ] Add to VCPKG/Conan when feature complete

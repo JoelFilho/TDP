@@ -1,3 +1,10 @@
+// The Darkest Pipeline - https://github.com/JoelFilho/TDP
+// pipeline.hpp - Public pipeline interface
+
+// Copyright Joel P. C. Filho 2020 - 2020
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.md or copy at https://www.boost.org/LICENSE_1_0.txt)
+
 #ifndef TDP_PIPELINE_HPP
 #define TDP_PIPELINE_HPP
 

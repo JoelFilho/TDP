@@ -1,3 +1,10 @@
+// The Darkest Pipeline - https://github.com/JoelFilho/TDP
+// test_policies.cpp - Test suite for pipelines with execution policies
+
+// Copyright Joel P. C. Filho 2020 - 2020
+// Distributed under the Boost Software License, Version 1.0.
+// (See accompanying file LICENSE.md or copy at https://www.boost.org/LICENSE_1_0.txt)
+
 #include <math.h>
 
 #include "doctest/doctest.h"
