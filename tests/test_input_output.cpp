@@ -17,14 +17,15 @@ TEST_CASE("Basic Input and Output") {
   }
 
   SUBCASE("Multiple inputs yield the same amount of outputs, in the correct order.") {
-    constexpr int N = 10;
-    for (int i = 0; i < N; i++) {
+    constexpr int input_count = 10;
+    for (int i = 0; i < input_count; i++) {
       pipeline.input(i);
     }
-    for (int i = 0; i < N; i++) {
+    for (int i = 0; i < input_count; i++) {
       int res = pipeline.wait_get();
       REQUIRE_EQ(res, square(i));
     }
-    REQUIRE_FALSE(pipeline.try_get());
+    auto res = pipeline.try_get();
+    REQUIRE(!res.has_value());
   }
 }

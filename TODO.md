@@ -16,7 +16,6 @@
   - [x] Rename `running()` to remove ambiguity
 - [x] Use `std::invoke` wherever applicable
 - [x] Prohibit reference outputs (mutable lvalue reference parameters already invalid)
-  - [ ] Allow reference output, but use `decay_t` for storage and propagation?
 - [x] Create a move-constructible variant of the pipeline (smart pointer?)
   - [x] Restructure the policy interface to support policy + construction type (`operator /`?)
 - [ ] `[[nodiscard]]`, `const` and `noexcept` correctness
@@ -32,7 +31,7 @@
   - [x] Comments
   - [ ] Markdown
 - [ ] `static_assert` descriptions
-- [ ] Unit tests
+- [x] Unit tests
 - [x] Better examples
 - [ ] License headers
 - [ ] Improve CMake integration (install interface)
@@ -46,3 +45,4 @@
 - Tuple adapter: calling `std::apply` in a tuple return in the pipeline
 - Load analysis (possible issue: false sharing)
 - Shared ownership wrapper for all 3 pipeline stage types
+- Set producer throughput
