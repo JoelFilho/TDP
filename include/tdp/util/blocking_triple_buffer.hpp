@@ -49,7 +49,10 @@ class blocking_triple_buffer {
 
   bool empty() const noexcept { return !available; }
 
-  void wake() { _condition.notify_all(); }
+  void wake() {
+    std::unique_lock lock{_mutex};
+    _condition.notify_all();
+  }
 
  private:
   std::array<T, 3> _buffer;  // TODO: aligned_storage_t to prevent default construction?
