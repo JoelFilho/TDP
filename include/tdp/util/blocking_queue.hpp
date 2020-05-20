@@ -50,7 +50,7 @@ class blocking_queue {
   bool empty() const noexcept { return _queue.empty(); }
 
   void wake() {
-    std::unique_lock lock{_mutex};
+    { std::unique_lock lock{_mutex}; }
     _condition.notify_all();
   }
 

@@ -57,7 +57,7 @@ class blocking_triple_buffer {
   bool empty() const noexcept { return !available; }
 
   void wake() {
-    std::unique_lock lock{_mutex};
+    { std::unique_lock lock{_mutex}; }
     _condition.notify_all();
   }
 

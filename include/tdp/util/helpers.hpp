@@ -167,6 +167,19 @@ struct is_same_template<T, T> : std::bool_constant<true> {};
 template <template <typename...> typename T1, template <typename...> typename T2>
 inline constexpr bool is_same_template_v = is_same_template<T1, T2>::value;
 
+//---------------------------------------------------------------------------------------------------------------------
+// Boolean constants for dependent scopes (to use on static_assert's)
+//---------------------------------------------------------------------------------------------------------------------
+
+template <bool B, typename...>
+inline constexpr bool dependent_bool = B;
+
+template <typename...>
+inline constexpr bool true_v = true;
+
+template <typename...>
+inline constexpr bool false_v = false;
+
 }  // namespace tdp::util
 
 #endif
