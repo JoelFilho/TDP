@@ -27,6 +27,8 @@ jobs:
           - name: Ubuntu 18.04 (Clang 9)
             os: ubuntu-18.04
             cxx: clang++-9
+          - name: Mac (Latest)
+            os: macos-latest
         cmake-build-types: [Debug, Release]
     steps:
       - name: "Checkout"
