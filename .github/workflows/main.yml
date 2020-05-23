@@ -34,10 +34,10 @@ jobs:
         with:
           submodules: true
       - name: "Set Windows Vars"
-        if: runner.os == "Windows"
+        if: runner.os == 'Windows'
         run: ${{ matrix.configurations.environment-script }}
       - name: "Set Linux Vars"
-        if: runner.os == "Linux"
+        if: runner.os == 'Linux'
         uses: allenevans/set-env@v1.1.0
         with:
           CXX: ${{ matrix.configurations.cxx }}
