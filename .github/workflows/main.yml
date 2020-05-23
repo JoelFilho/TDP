@@ -17,7 +17,7 @@ jobs:
         configurations:
           - name: Windows (Latest, MSVC2019)
             os: windows-latest
-            environment-script: "C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"
+            environment-script: '"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"'
           - name: Ubuntu 18.04 (GCC)
             os: ubuntu-18.04
             cxx: g++
