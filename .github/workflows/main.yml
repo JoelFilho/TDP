@@ -1,0 +1,54 @@
+name: "CI"
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  ci: 
+    name: "${{ matrix.configurations.name }} | ${{ matrix.cmake-build-types }}"
+    runs-on: ${{ matrix.configurations.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        configurations:
+          - name: Windows (Latest, MSVC2019)
+            os: windows-latest
+            environment-script: '"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"'
+          - name: Ubuntu 18.04 (GCC)
+            os: ubuntu-18.04
+            cxx: g++
+          - name: Ubuntu 18.04 (Clang 8)
+            os: ubuntu-18.04
+            cxx: clang++-8
+          - name: Ubuntu 18.04 (Clang 9)
+            os: ubuntu-18.04
+            cxx: clang++-9
+          - name: Mac (Latest)
+            os: macos-latest
+        cmake-build-types: [Debug, Release]
+    steps:
+      - name: "Checkout"
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+      - name: "Set Windows Vars"
+        if: runner.os == 'Windows'
+        run: ${{ matrix.configurations.environment-script }}
+      - name: "Set Linux Vars"
+        if: runner.os == 'Linux'
+        uses: allenevans/set-env@v1.1.0
+        with:
+          CXX: ${{ matrix.configurations.cxx }}
+      - name: "Build tests and examples"
+        run: |
+          cmake -E remove_directory build
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=${{ matrix.cmake-build-types }} -DTDP_BUILD_TESTS=ON -DTDP_BUILD_EXAMPLES=ON
+          cmake --build build
+      - name: "Run tests"
+        run: |
+          cd build
+          ctest
