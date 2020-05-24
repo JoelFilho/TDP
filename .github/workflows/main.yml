@@ -53,6 +53,6 @@ jobs:
           cd build
           ctest
       - name: "Run Examples"
-          uses: JoelFilho/cmake-run-targets@master
-          with:
-            source-folders: "examples"
+        uses: JoelFilho/cmake-run-targets@master
+        with:
+          source-folders: "examples"
