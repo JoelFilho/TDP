@@ -22,7 +22,7 @@
   - [x] `[[nodiscard]]` in member functions
   - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`: [Bug report](https://bugs.llvm.org/show_bug.cgi?id=45942))
   - [x] `const`
-  - [ ] `noexcept`: Will not have conditional `noexcept` for first release. If it throws, it terminates.
+  - [x] `noexcept`
 - [ ] Allow `input >> consumer`, symmetric to `producer >> output`?
 - [ ] `empty_input()` interface?
 

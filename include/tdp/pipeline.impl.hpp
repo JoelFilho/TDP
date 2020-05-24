@@ -41,7 +41,7 @@ struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable, void> {
   Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
-  void operator()() {
+  void operator()() noexcept {
     while (!_stop) {
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
@@ -63,7 +63,7 @@ struct thread_worker<Queue, jtc::type_list<>, Callable> {
   const std::atomic_bool& _pause;
   const std::atomic_bool& _stop;
 
-  void operator()() {
+  void operator()() noexcept {
     while (!_stop) {
       if (!_pause)
         _output_queue.push(std::invoke(_f));
@@ -81,7 +81,7 @@ struct thread_worker<Queue, Input, Callable,                           //
   Queue<Input>& _input_queue;
   const std::atomic_bool& _stop;
 
-  void operator()() {
+  void operator()() noexcept {
     while (!_stop) {
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
@@ -103,7 +103,7 @@ struct thread_worker<Queue, Input, Callable,                           //
   Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
-  void operator()() {
+  void operator()() noexcept {
     while (!_stop) {
       auto val = _input_queue.pop_unless([&] { return _stop.load(); });
       if (!val)
@@ -340,7 +340,8 @@ struct output_with_policy {
   OutputType _data;
 
   template <template <typename...> class Wrapper>
-  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) && noexcept {
+  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) &&  //
+      noexcept(std::is_nothrow_move_constructible_v<OutputType>) {
     return output_tagged<OutputType, Queue, Wrapper>{std::move(_data)};
   }
 };
@@ -359,15 +360,17 @@ struct end_type {
 
 template <typename F>
 struct consumer {
+  static_assert(std::is_move_constructible_v<F>);
+
   F _f;
 
   template <template <typename...> class Queue>
-  [[nodiscard]] constexpr auto operator/(policy_type<Queue>) && noexcept {
+  [[nodiscard]] constexpr auto operator/(policy_type<Queue>) && noexcept(std::is_nothrow_move_constructible_v<F>) {
     return output_with_policy<consumer, Queue>{std::move(*this)};
   }
 
   template <template <typename...> class Wrapper>
-  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) && noexcept {
+  [[nodiscard]] constexpr auto operator/(wrapper_type<Wrapper>) && noexcept(std::is_nothrow_move_constructible_v<F>) {
     return output_tagged<consumer, default_queue_t, Wrapper>{std::move(*this)};
   }
 };
@@ -390,7 +393,7 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   std::tuple<Stages...> _stages;
 
   template <template <typename...> class Queue = default_queue_t, template <typename...> class Wrapper = null_wrapper>
-  [[nodiscard]] auto operator>>(end_type) && noexcept {
+  [[nodiscard]] auto operator>>(end_type) && {
     using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages...>;
 
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
@@ -409,7 +412,7 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   template <template <typename...> class Queue = default_queue_t,  //
       template <typename...> class Wrapper = null_wrapper,         //
       typename F>
-  [[nodiscard]] auto operator>>(consumer<F>&& s) && noexcept {
+  [[nodiscard]] auto operator>>(consumer<F>&& s) && {
     using F_ = std::decay_t<F>;
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
@@ -431,18 +434,22 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   }
 
   template <typename OutputType, template <typename...> class Queue>
-  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) && noexcept {
+  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) &&  //
+      noexcept(util::are_nothrow_move_constructible_v<OutputType, Stages...>) {
     return std::move(*this).template operator>><Queue>(std::move(output._data));
   }
 
   template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
-  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) && noexcept {
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) &&  //
+      noexcept(util::are_nothrow_move_constructible_v<OutputType, Stages...>) {
     return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
   }
 
   template <typename F>
-  [[nodiscard]] constexpr auto operator>>(F&& f) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(F&& f) &&  //
+      noexcept(util::are_nothrow_move_constructible_v<F, Stages...>) {
     using F_ = std::decay_t<F>;
+    static_assert(std::is_move_constructible_v<F_>);
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
     static_assert(std::is_invocable_v<F_, arg_t>);
 
@@ -470,8 +477,9 @@ struct input_type {
   input_type(input_type&&) = delete;
 
   template <typename F>
-  [[nodiscard]] constexpr auto operator>>(F&& f) const noexcept {
+  [[nodiscard]] constexpr auto operator>>(F&& f) const noexcept(std::is_nothrow_move_constructible_v<F>) {
     using F_ = std::decay_t<F>;
+    static_assert(std::is_move_constructible_v<F_>);
 
     static_assert(std::is_invocable_v<F_, InputArgs...>);
 
@@ -487,6 +495,8 @@ struct input_type {
 
 template <typename F>
 struct producer {
+  static_assert(std::is_move_constructible_v<F>);
+
   F _f;
 
   static_assert(std::is_invocable_v<F>);
@@ -496,8 +506,9 @@ struct producer {
   static_assert(!std::is_reference_v<produced_t>);
 
   template <typename Fc>
-  [[nodiscard]] constexpr auto operator>>(Fc&& f) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(Fc&& f) && noexcept(util::are_nothrow_move_constructible_v<F, Fc>) {
     using F_ = std::decay_t<Fc>;
+    static_assert(std::is_move_constructible_v<F_>);
     static_assert(std::is_invocable_v<F_, produced_t>);
 
     using ret_t = std::invoke_result_t<F_, produced_t>;
@@ -512,7 +523,7 @@ struct producer {
   template <template <typename...> class Queue = default_queue_t,  //
       template <typename...> class Wrapper = null_wrapper,         //
       typename Fc>
-  [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && {
     static_assert(std::is_invocable_v<Fc, produced_t>);
 
     using ret_t = std::invoke_result_t<Fc, produced_t>;
@@ -535,7 +546,7 @@ struct producer {
 
   template <template <typename...> class Queue = default_queue_t,  //
       template <typename...> class Wrapper = null_wrapper>
-  [[nodiscard]] constexpr auto operator>>(end_type) && noexcept {
+  [[nodiscard]] constexpr auto operator>>(end_type) && {
     using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F>;
 
     if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
@@ -552,12 +563,14 @@ struct producer {
   }
 
   template <typename OutputType, template <typename...> class Queue>
-  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) && noexcept {
+  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) &&  //
+      noexcept(util::are_nothrow_move_constructible_v<F, OutputType>) {
     return std::move(*this).template operator>><Queue>(std::move(output._data));
   }
 
   template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
-  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) && noexcept {
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) &&  //
+      noexcept(util::are_nothrow_move_constructible_v<F, OutputType>) {
     return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
   }
 };

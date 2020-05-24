@@ -180,6 +180,28 @@ inline constexpr bool true_v = true;
 template <typename...>
 inline constexpr bool false_v = false;
 
+//---------------------------------------------------------------------------------------------------------------------
+// Boolean helpers:
+// Apply a B template with a boolean value field (e.g. std::bool_constant) to all Ts arguments,
+// then apply a boolean operator on the resulting values.
+//---------------------------------------------------------------------------------------------------------------------
+
+template <template <typename> class B, typename... Ts>
+inline constexpr bool eval_conjunction_v = (true && ... && B<Ts>::value);
+
+template <template <typename> class B, typename... Ts>
+inline constexpr bool eval_disjunction_v = (false || ... || B<Ts>::value);
+
+//---------------------------------------------------------------------------------------------------------------------
+// Boolean pack evaluators for specific Standard type traits
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename... Ts>
+inline constexpr bool are_move_constructible_v = eval_conjunction_v<std::is_move_constructible, Ts...>;
+
+template <typename... Ts>
+inline constexpr bool are_nothrow_move_constructible_v = eval_conjunction_v<std::is_nothrow_move_constructible, Ts...>;
+
 }  // namespace tdp::util
 
 #endif
