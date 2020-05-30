@@ -43,6 +43,11 @@ TEST_CASE("Exceptions") {
     REQUIRE_THROWS_AS(auto pipeline = tdp::producer{make_int} >> to_float >> tdp::consumer{thrower{1}},  //
         std::runtime_error);
   }
+
+  SUBCASE("Producer to Consumer") {
+    auto empty_consumer = [](auto) {};
+    REQUIRE_THROWS_AS(auto pipeline = tdp::producer{thrower{2}} >> tdp::consumer{empty_consumer}, std::runtime_error);
+  }
 }
 
 // Commpile-time tests
@@ -60,5 +65,6 @@ static_assert(noexcept(tdp::producer{produce} >> passthrough >> passthrough));
 
 // Construction on output is not noexcept, as std::thread's constructor throws.
 static_assert(!noexcept(tdp::producer{produce} >> passthrough >> tdp::consumer{consume}));
+static_assert(!noexcept(tdp::producer{produce} >> tdp::consumer{consume}));
 
 }  // namespace static_tests

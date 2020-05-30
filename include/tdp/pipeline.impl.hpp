@@ -32,7 +32,9 @@ struct thread_worker;
 
 // Normal input
 template <template <typename...> class Queue, typename... InputArgs, typename Callable>
-struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable, void> {
+struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable,  //
+    std::enable_if_t<sizeof...(InputArgs) != 0>,                     //
+    std::enable_if_t<!std::is_same_v<std::invoke_result_t<Callable, InputArgs...>, void>>> {
   using input_t = std::tuple<InputArgs...>;
   using output_t = std::invoke_result_t<Callable, InputArgs...>;
 
@@ -87,6 +89,27 @@ struct thread_worker<Queue, Input, Callable,                           //
       if (!val)
         break;
       std::invoke(_f, std::move(*val));
+    }
+  }
+};
+
+// Input+Consumer thread for a consumer-only pipeline
+template <template <typename...> class Queue, typename... InputArgs, typename Callable>
+struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable,  //
+    std::enable_if_t<sizeof...(InputArgs) != 0>,                     //
+    std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, InputArgs...>, void>>> {
+  using input_t = std::tuple<InputArgs...>;
+
+  Callable _f;
+  Queue<input_t>& _input_queue;
+  const std::atomic_bool& _stop;
+
+  void operator()() noexcept {
+    while (!_stop) {
+      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
+      if (!val)
+        break;
+      std::apply(_f, std::move(*val));
     }
   }
 };
@@ -185,28 +208,26 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
 
  public:
   pipeline(std::tuple<Stages...>&& stages) {
-    if constexpr (N > 1) {
-      init_output_thread(std::move(std::get<N - 1>(stages)));
+    try {
+      if constexpr (N > 1) {
+        init_output_thread(std::move(std::get<N - 1>(stages)));
 
-      if constexpr (N > 2) {
-        init_intermediary_threads<1>(stages);
+        if constexpr (N > 2) {
+          init_intermediary_threads<1>(stages);
+        }
       }
-    }
 
-    init_input_thread(std::move(std::get<0>(stages)));
+      init_input_thread(std::move(std::get<0>(stages)));
+    } catch (...) {
+      stop_threads();
+      throw;
+    }
   }
 
   pipeline(const pipeline&) = delete;
   pipeline(pipeline&&) = delete;
 
-  ~pipeline() {
-    _stop = true;
-    if constexpr (sizeof...(InputArgs) != 0) {
-      pipeline_input_t::_input_queue.wake();
-    }
-    for (auto& t : _threads)
-      t.join();
-  }
+  ~pipeline() { stop_threads(); }
 
   template <std::size_t I>
   void init_intermediary_threads(std::tuple<Stages...>& stages) {
@@ -281,13 +302,23 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     } else {
       // User input
       if constexpr (N == 1) {
-        // Feeding directly to output
-        _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
-            std::forward<T>(first),
-            pipeline_input_t::_input_queue,
-            pipeline_output_t::_output_queue,
-            _stop,
-        });
+        using ret_t = util::pipeline_return_t<input_list_t, Stages...>;
+        if constexpr (std::is_same_v<ret_t, void>) {
+          // Consumer-only pipeline
+          _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+              std::forward<T>(first),
+              pipeline_input_t::_input_queue,
+              _stop,
+          });
+        } else {
+          // Feeding directly to output
+          _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+              std::forward<T>(first),
+              pipeline_input_t::_input_queue,
+              pipeline_output_t::_output_queue,
+              _stop,
+          });
+        }
       } else {
         // Feeding to a second thread
         _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
@@ -304,6 +335,25 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
   std::atomic_bool _stop = false;
   tuple_t _queues;
   std::array<std::thread, N> _threads;
+
+  void stop_threads() {
+    // Set the "stop token" flag
+    _stop = true;
+
+    // Wake input thread, if it exists
+    if constexpr (sizeof...(InputArgs) != 0) {
+      pipeline_input_t::_input_queue.wake();
+    }
+
+    // Wake all threads waiting for input
+    // (needed in case thread fails during construction)
+    util::tuple_foreach([](auto& queue) { queue.wake(); }, _queues);
+
+    // Wait for all unfinished threads to exit
+    for (auto& thread : _threads)
+      if (thread.joinable())
+        thread.join();
+  }
 };
 
 //-------------------------------------------------------------------------------------------------
@@ -491,6 +541,40 @@ struct input_type {
         {std::forward<F>(f)},
     };
   }
+
+  template <template <typename...> class Queue = default_queue_t,  //
+      template <typename...> class Wrapper = null_wrapper,         //
+      typename Fc>
+  [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) const {
+    static_assert(std::is_invocable_v<Fc, InputArgs...>);
+
+    using ret_t = std::invoke_result_t<Fc, InputArgs...>;
+    static_assert(std::is_same_v<ret_t, void>);
+
+    using pipeline_t = pipeline<default_queue_t, jtc::type_list<InputArgs...>, Fc>;
+
+    if constexpr (util::is_same_template_v<Wrapper, null_wrapper>) {
+      return pipeline_t{
+          std::tuple<Fc>{std::move(c._f)},
+      };
+    } else {
+      return Wrapper<pipeline_t>{
+          new pipeline_t{
+              std::tuple<Fc>{std::move(c._f)},
+          },
+      };
+    }
+  }
+
+  template <typename OutputType, template <typename...> class Queue>
+  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) const {
+    return std::move(*this).template operator>><Queue>(std::move(output._data));
+  }
+
+  template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) const {
+    return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
+  }
 };
 
 template <typename F>
@@ -563,14 +647,12 @@ struct producer {
   }
 
   template <typename OutputType, template <typename...> class Queue>
-  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) &&  //
-      noexcept(util::are_nothrow_move_constructible_v<F, OutputType>) {
+  [[nodiscard]] auto operator>>(output_with_policy<OutputType, Queue>&& output) && {
     return std::move(*this).template operator>><Queue>(std::move(output._data));
   }
 
   template <typename OutputType, template <typename...> class Queue, template <typename...> class Wrapper>
-  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) &&  //
-      noexcept(util::are_nothrow_move_constructible_v<F, OutputType>) {
+  [[nodiscard]] auto operator>>(output_tagged<OutputType, Queue, Wrapper>&& output) && {
     return std::move(*this).template operator>><Queue, Wrapper>(std::move(output._data));
   }
 };

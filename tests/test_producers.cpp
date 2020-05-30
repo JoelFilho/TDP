@@ -42,6 +42,8 @@ TEST_CASE("Producers") {
 
   SUBCASE("All items produced are processed, and in the right order") {
     std::this_thread::sleep_for(10ms);
+    while (produced < 10)
+      /* Wait until there's at least 10 produced items in the list */;
     pipeline.pause();
     std::this_thread::sleep_for(10ms);
 

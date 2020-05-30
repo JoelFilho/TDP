@@ -24,6 +24,12 @@ constexpr auto tuple_append_impl(std::tuple<Ts...>&& tuple, T&& value, std::inde
   return {std::move(std::get<Is>(tuple))..., std::forward<T>(value)};
 }
 
+/// Implementation of tuple_foreach
+template <typename F, typename Tuple, std::size_t... Is>
+constexpr void tuple_foreach_impl(F&& f, Tuple&& tuple, std::index_sequence<Is...>) {
+  (((void)std::invoke(std::forward<F>(f), std::get<Is>(std::forward<Tuple>(tuple)))), ...);
+}
+
 // Hidden implementation for pipeline_return_t
 template <typename Input, typename... Callables>
 struct pipeline_return;
@@ -97,6 +103,16 @@ struct intermediate_stages_tuple {
 template <typename... Ts, typename T>
 constexpr auto tuple_append(std::tuple<Ts...> tuple, T&& value) {
   return detail::tuple_append_impl(std::move(tuple), std::forward<T>(value), std::index_sequence_for<Ts...>());
+}
+
+//---------------------------------------------------------------------------------------------------------------------
+// Applies a functor to each member of a tuple
+//---------------------------------------------------------------------------------------------------------------------
+
+template <typename F, typename Tuple>
+void tuple_foreach(F&& functor, Tuple&& tuple) {
+  constexpr auto size = std::tuple_size_v<std::decay_t<Tuple>>;
+  detail::tuple_foreach_impl(std::forward<F>(functor), std::forward<Tuple>(tuple), std::make_index_sequence<size>{});
 }
 
 //---------------------------------------------------------------------------------------------------------------------

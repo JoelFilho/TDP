@@ -23,7 +23,7 @@
   - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`: [Bug report](https://bugs.llvm.org/show_bug.cgi?id=45942))
   - [x] `const`
   - [x] `noexcept`
-- [ ] Allow `input >> consumer`, symmetric to `producer >> output`?
+- [x] Allow `input >> consumer`, symmetric to `producer >> output`?
 - [ ] `empty_input()` interface?
 
 ## Project
