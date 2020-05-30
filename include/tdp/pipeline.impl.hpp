@@ -465,8 +465,8 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
   [[nodiscard]] auto operator>>(consumer<F>&& s) && {
     using F_ = std::decay_t<F>;
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
-    static_assert(std::is_invocable_v<F_, arg_t>);
-    static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>);
+    static_assert(std::is_invocable_v<F_, arg_t>, "The consumer can't be called with the pipeline stage's output");
+    static_assert(std::is_same_v<std::invoke_result_t<F_, arg_t>, void>, "A consumer must return void.");
 
     using pipeline_t = pipeline<Queue, jtc::type_list<InputArgs...>, Stages..., F>;
 
@@ -501,11 +501,11 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
     using F_ = std::decay_t<F>;
     static_assert(std::is_move_constructible_v<F_>);
     using arg_t = tdp::util::pipeline_return_t<jtc::type_list<InputArgs...>, Stages...>;
-    static_assert(std::is_invocable_v<F_, arg_t>);
+    static_assert(std::is_invocable_v<F_, arg_t>, "The new stage must be callable with the current pipeline output");
 
     using ret_t = std::invoke_result_t<F_, arg_t>;
-    static_assert(!std::is_reference_v<ret_t>);
-    static_assert(!std::is_same_v<ret_t, void>);
+    static_assert(!std::is_reference_v<ret_t>, "Pipeline stages can't return references");
+    static_assert(!std::is_same_v<ret_t, void>, "To return void, use consumer threads.");
 
     return partial_pipeline<jtc::type_list<InputArgs...>, Stages..., F_>{
         {tdp::util::tuple_append(std::move(_stages), std::forward<F>(f))},
@@ -519,8 +519,8 @@ struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
 
 template <typename... InputArgs>
 struct input_type {
-  static_assert(sizeof...(InputArgs) > 0);
-  static_assert(!(std::is_reference_v<InputArgs> || ...));
+  static_assert(sizeof...(InputArgs) > 0, "A pipeline must have input arguments. For one without them, use producers.");
+  static_assert(!(std::is_reference_v<InputArgs> || ...), "The input parameters of a pipeline can't be references.");
 
   constexpr input_type() noexcept {}
   input_type(const input_type&) = delete;
@@ -531,11 +531,11 @@ struct input_type {
     using F_ = std::decay_t<F>;
     static_assert(std::is_move_constructible_v<F_>);
 
-    static_assert(std::is_invocable_v<F_, InputArgs...>);
+    static_assert(std::is_invocable_v<F_, InputArgs...>, "The pipeline stage must be callable with the input.");
 
     using ret_t = std::invoke_result_t<F_, InputArgs...>;
-    static_assert(!std::is_reference_v<ret_t>);
-    static_assert(!std::is_same_v<ret_t, void>);
+    static_assert(!std::is_reference_v<ret_t>, "Pipeline stages can't return references");
+    static_assert(!std::is_same_v<ret_t, void>, "To return void, use consumer threads.");
 
     return partial_pipeline<jtc::type_list<InputArgs...>, F_>{
         {std::forward<F>(f)},
@@ -546,10 +546,10 @@ struct input_type {
       template <typename...> class Wrapper = null_wrapper,         //
       typename Fc>
   [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) const {
-    static_assert(std::is_invocable_v<Fc, InputArgs...>);
+    static_assert(std::is_invocable_v<Fc, InputArgs...>, "The consumer must be callable with the input.");
 
     using ret_t = std::invoke_result_t<Fc, InputArgs...>;
-    static_assert(std::is_same_v<ret_t, void>);
+    static_assert(std::is_same_v<ret_t, void>, "A consumer must return void.");
 
     using pipeline_t = pipeline<default_queue_t, jtc::type_list<InputArgs...>, Fc>;
 
@@ -583,21 +583,21 @@ struct producer {
 
   F _f;
 
-  static_assert(std::is_invocable_v<F>);
+  static_assert(std::is_invocable_v<F>, "A producer thread must be invocable without parameters");
 
   using produced_t = std::invoke_result_t<F>;
-  static_assert(!std::is_same_v<produced_t, void>);
-  static_assert(!std::is_reference_v<produced_t>);
+  static_assert(!std::is_same_v<produced_t, void>, "A producer can't return void.");
+  static_assert(!std::is_reference_v<produced_t>, "A producer's return type can't be a reference.");
 
   template <typename Fc>
   [[nodiscard]] constexpr auto operator>>(Fc&& f) && noexcept(util::are_nothrow_move_constructible_v<F, Fc>) {
     using F_ = std::decay_t<Fc>;
     static_assert(std::is_move_constructible_v<F_>);
-    static_assert(std::is_invocable_v<F_, produced_t>);
+    static_assert(std::is_invocable_v<F_, produced_t>, "The new stage must be callable with the producer's output");
 
     using ret_t = std::invoke_result_t<F_, produced_t>;
-    static_assert(!std::is_reference_v<ret_t>);
-    static_assert(!std::is_same_v<ret_t, void>);
+    static_assert(!std::is_reference_v<ret_t>, "Pipeline stages can't return references");
+    static_assert(!std::is_same_v<ret_t, void>, "To return void, use consumer threads.");
 
     return partial_pipeline<jtc::type_list<>, F, F_>{
         {std::move(_f), std::forward<Fc>(f)},
@@ -608,10 +608,10 @@ struct producer {
       template <typename...> class Wrapper = null_wrapper,         //
       typename Fc>
   [[nodiscard]] constexpr auto operator>>(consumer<Fc>&& c) && {
-    static_assert(std::is_invocable_v<Fc, produced_t>);
+    static_assert(std::is_invocable_v<Fc, produced_t>, "The consumer must be callable with the producer's output");
 
     using ret_t = std::invoke_result_t<Fc, produced_t>;
-    static_assert(std::is_same_v<ret_t, void>);
+    static_assert(std::is_same_v<ret_t, void>, "A consumer must return void.");
 
     using pipeline_t = pipeline<default_queue_t, jtc::type_list<>, F, Fc>;
 

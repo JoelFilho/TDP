@@ -35,7 +35,7 @@ struct buffer_control_block {
 template <typename T>
 class lock_free_triple_buffer {
   using control_block_t = std::atomic<buffer_control_block>;
-  static_assert(dependent_bool<control_block_t::is_always_lock_free, T>);
+  static_assert(dependent_bool<control_block_t::is_always_lock_free, T>, "This queue should be lock-free.");
 
  public:
   void push(T val) {

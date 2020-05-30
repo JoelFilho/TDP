@@ -31,12 +31,12 @@
 - [x] Documentation (ish)
   - [x] Comments
   - [x] Markdown
-- [ ] `static_assert` descriptions
+- [x] `static_assert` descriptions
 - [x] Unit tests
 - [x] Better examples
 - [x] License headers
 - [x] Improve CMake integration (install interface)
-- [ ] CI
+- [x] CI
 - [ ] Add to VCPKG/Conan when feature complete
 
 ## Possible features
