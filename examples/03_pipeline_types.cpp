@@ -62,8 +62,7 @@ int main() {
 
   // Pipelines using user-generated input and a consumer
   // The consumer processes the data, and no output given.
-  // With templates, we can have two similar pipelines for different types!
-  auto p5 = tdp::input<int, int> >> add() >> square() >> tdp::consumer{consume<int>()};
+  auto p5 = tdp::input<int> >> tdp::consumer{consume<int>()};
   auto p6 = tdp::input<double, double> >> add() >> square() >> tdp::consumer{consume<double>()};
 
   // Producer-consumer pipelines.

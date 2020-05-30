@@ -38,3 +38,29 @@ TEST_CASE("Consumers") {
     }
   }
 }
+
+TEST_CASE("Single-thread Consumers") {
+  std::vector<int> consumed;
+  auto sum_consume = [&](auto a, auto b) { consumed.push_back(a + b); };
+
+  auto pipeline = tdp::input<int, int> >> tdp::consumer{sum_consume} / tdp::policy::queue / tdp::as_unique_ptr;
+
+  REQUIRE(consumed.empty());
+
+  SUBCASE("Must process the same amount of input given") {
+    constexpr int input_count = 10;
+    for (int i = 0; i < input_count; i++) {
+      pipeline->input(i, i);
+    }
+
+    std::this_thread::sleep_for(100ms);
+
+    REQUIRE_EQ(consumed.size(), input_count);
+
+    SUBCASE("In the same order") {
+      for (int i = 0; i < input_count; i++) {
+        REQUIRE_EQ(i + i, consumed[i]);
+      }
+    }
+  }
+}

@@ -12,6 +12,8 @@ TEST_CASE("Basic Input and Output") {
   constexpr auto square = [](auto x) { return x * x; };
   auto pipeline = tdp::input<int> >> square >> tdp::output;
 
+  REQUIRE(pipeline.input_is_empty());
+
   SUBCASE("Empty pipeline should yield no output on try_get()") {  //
     auto res = pipeline.try_get();
     REQUIRE(!res.has_value());
@@ -20,6 +22,7 @@ TEST_CASE("Basic Input and Output") {
   SUBCASE("Single input yields a single output") {
     pipeline.input(5);
     REQUIRE(pipeline.wait_get() == 25);
+    REQUIRE(pipeline.input_is_empty());
     REQUIRE_FALSE(pipeline.try_get());
   }
 
@@ -32,6 +35,7 @@ TEST_CASE("Basic Input and Output") {
       int res = pipeline.wait_get();
       REQUIRE_EQ(res, square(i));
     }
+    REQUIRE(pipeline.input_is_empty());
     auto res = pipeline.try_get();
     REQUIRE(!res.has_value());
   }

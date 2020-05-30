@@ -23,20 +23,20 @@
   - [ ] `[[nodiscard]]` in types (Blocker: clang-format breaks `&&`: [Bug report](https://bugs.llvm.org/show_bug.cgi?id=45942))
   - [x] `const`
   - [x] `noexcept`
-- [ ] Allow `input >> consumer`, symmetric to `producer >> output`?
-- [ ] `empty_input()` interface?
+- [x] Allow `input >> consumer`, symmetric to `producer >> output`?
+- [x] `empty_input()` interface?
 
 ## Project
 
 - [x] Documentation (ish)
   - [x] Comments
   - [x] Markdown
-- [ ] `static_assert` descriptions
+- [x] `static_assert` descriptions
 - [x] Unit tests
 - [x] Better examples
 - [x] License headers
 - [x] Improve CMake integration (install interface)
-- [ ] CI
+- [x] CI
 - [ ] Add to VCPKG/Conan when feature complete
 
 ## Possible features
