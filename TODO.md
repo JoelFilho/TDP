@@ -24,7 +24,7 @@
   - [x] `const`
   - [x] `noexcept`
 - [x] Allow `input >> consumer`, symmetric to `producer >> output`?
-- [ ] `empty_input()` interface?
+- [x] `empty_input()` interface?
 
 ## Project
 

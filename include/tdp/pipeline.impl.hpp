@@ -151,6 +151,7 @@ struct pipeline_input<Queue, jtc::type_list<InputArgs...>> {
   using storage_t = std::tuple<InputArgs...>;
 
   void input(InputArgs... args) { _input_queue.push(storage_t(std::move(args)...)); }
+  [[nodiscard]] bool input_is_empty() const noexcept { return _input_queue.empty(); }
 
  protected:
   Queue<storage_t> _input_queue;
