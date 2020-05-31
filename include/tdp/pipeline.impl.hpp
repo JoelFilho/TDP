@@ -230,6 +230,7 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
 
   ~pipeline() { stop_threads(); }
 
+ private:
   template <std::size_t I>
   void init_intermediary_threads(std::tuple<Stages...>& stages) {
     using inputs = util::result_list_t<input_list_t, Stages...>;
@@ -332,11 +333,6 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     }
   }
 
- private:
-  std::atomic_bool _stop = false;
-  tuple_t _queues;
-  std::array<std::thread, N> _threads;
-
   void stop_threads() {
     // Set the "stop token" flag
     _stop = true;
@@ -355,6 +351,11 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       if (thread.joinable())
         thread.join();
   }
+
+ private:
+  std::atomic_bool _stop = false;
+  tuple_t _queues;
+  std::array<std::thread, N> _threads;
 };
 
 //-------------------------------------------------------------------------------------------------
