@@ -1,6 +1,4 @@
-set(DOCTEST_NO_INSTALL ON  CACHE BOOL "Do not install doctest with TDP by default")
-set(DOCTEST_WITH_TESTS OFF CACHE BOOL "Do not install build doctest's tests and examples")
-add_subdirectory(doctest)
+add_subdirectory(doctest EXCLUDE_FROM_ALL)
 
 file(GLOB TEST_FILES CONFIGURE_DEPENDS "*.cpp")
 
