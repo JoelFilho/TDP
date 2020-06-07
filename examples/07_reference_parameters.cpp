@@ -33,7 +33,7 @@ int main() {
   pipeline.input("!dlroW olleH");
   pipeline.input("TACOCAT");
 
-  // We insert a delay before destruction, so the pipeline finishes execution.
-  using namespace std::chrono_literals;
-  std::this_thread::sleep_for(100ms);
+  // We wait until execution is complete with wait_until_idle()
+  // This way, we free the processor from scheduling this thread until then, and don't need to check pipeline.idle()
+  pipeline.wait_until_idle();
 }

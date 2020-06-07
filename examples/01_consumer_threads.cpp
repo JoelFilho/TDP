@@ -35,13 +35,11 @@ int main() {
   pipeline.input(2, 3.5);
   pipeline.input(7, 0.75);
 
-  // We can wait a little, do anything else, and the production will be done.
-  // Sometimes we want to guarantee the pipeline has finished running.
-  // For that, we'll use the idle() member function.
-  // TODO
-  using namespace std::chrono_literals;
-  std::this_thread::sleep_for(100ms);
+  // We can wait a little, do anything else, and the processing will be done.
+  // Sometimes we want to guarantee the pipeline has finished running before exitting.
+  // For that, we'll use the wait_until_idle() member function.
+  pipeline.wait_until_idle();
 
-  // The capture we used from the lambda!
+  // The capture we used from the lambda shows us we have processed everything!
   std::cout << "print() has been called " << count << " times.\n";
 }

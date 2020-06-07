@@ -40,7 +40,8 @@ TEST_CASE("Blocking Triple Buffer policy") {
     pipeline.input(i, i + 2);
   }
 
-  std::this_thread::sleep_for(100ms);
+  pipeline.wait_until_idle();
+  REQUIRE(pipeline.idle());
 
   int processed = 0;
 
@@ -66,7 +67,8 @@ TEST_CASE("Lock-free Triple Buffer policy") {
     pipeline.input(i, i + 2);
   }
 
-  std::this_thread::sleep_for(100ms);
+  pipeline.wait_until_idle();
+  REQUIRE(pipeline.idle());
 
   int processed = 0;
 
