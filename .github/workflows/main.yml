@@ -40,9 +40,8 @@ jobs:
         run: ${{ matrix.configurations.environment-script }}
       - name: "Set Linux Vars"
         if: runner.os == 'Linux'
-        uses: allenevans/set-env@v1.1.0
-        with:
-          CXX: ${{ matrix.configurations.cxx }}
+        run: |
+          echo "CXX=${{ matrix.configurations.cxx }}" >> $GITHUB_ENV
       - name: "Build tests and examples"
         run: |
           cmake -E remove_directory build
