@@ -8,7 +8,7 @@ on:
 
 jobs:
   ci: 
-    name: "${{ matrix.configurations.name }} | ${{ matrix.cmake-build-types }}"
+    name: "${{ matrix.configurations.name }} | C++${{ matrix.cpp-version }} | ${{ matrix.cmake-build-types }}"
     runs-on: ${{ matrix.configurations.os }}
     timeout-minutes: 30
     strategy:
@@ -18,18 +18,25 @@ jobs:
           - name: Windows (Latest, MSVC2019)
             os: windows-latest
             environment-script: '"C:/Program Files (x86)/Microsoft Visual Studio/2019/Enterprise/VC/Auxiliary/Build/vcvars64.bat"'
-          - name: Ubuntu 18.04 (GCC)
-            os: ubuntu-18.04
-            cxx: g++
-          - name: Ubuntu 18.04 (Clang 8)
-            os: ubuntu-18.04
-            cxx: clang++-8
-          - name: Ubuntu 18.04 (Clang 9)
-            os: ubuntu-18.04
-            cxx: clang++-9
+          - name: Ubuntu 20.04 (GCC 9)
+            os: ubuntu-20.04
+            cxx: g++-9
+          - name: Ubuntu 20.04 (GCC 10)
+            os: ubuntu-20.04
+            cxx: g++-10
+          - name: Ubuntu 20.04 (Clang 10)
+            os: ubuntu-20.04
+            cxx: clang++-10
+          - name: Ubuntu 20.04 (Clang 11)
+            os: ubuntu-20.04
+            cxx: clang++-11
+          - name: Ubuntu 20.04 (Clang 12)
+            os: ubuntu-20.04
+            cxx: clang++-12
           - name: Mac (Latest)
             os: macos-latest
         cmake-build-types: [Debug, Release]
+        cpp-version: [17, 20]
     steps:
       - name: "Checkout"
         uses: actions/checkout@v2
@@ -45,7 +52,7 @@ jobs:
       - name: "Build tests and examples"
         run: |
           cmake -E remove_directory build
-          cmake -B build -S . -DCMAKE_BUILD_TYPE=${{ matrix.cmake-build-types }} -DTDP_BUILD_TESTS=ON -DTDP_BUILD_EXAMPLES=ON
+          cmake -B build -S . -DCMAKE_BUILD_TYPE=${{ matrix.cmake-build-types }} -DCMAKE_CXX_STANDARD=${{ matrix.cpp-version }} -DTDP_BUILD_TESTS=ON -DTDP_BUILD_EXAMPLES=ON
           cmake --build build
       - name: "Run tests"
         run: |
