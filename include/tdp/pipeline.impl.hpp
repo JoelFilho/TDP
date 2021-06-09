@@ -438,6 +438,9 @@ struct partial_pipeline;
 
 template <typename... InputArgs, typename... Stages>
 struct partial_pipeline<jtc::type_list<InputArgs...>, Stages...> {
+  partial_pipeline(std::tuple<Stages...>&& stages)  //
+      noexcept(std::is_nothrow_move_constructible_v<std::tuple<Stages...>>)
+      : _stages{std::move(stages)} {}
   partial_pipeline(const partial_pipeline&) = delete;
   partial_pipeline(partial_pipeline&&) = delete;
 
