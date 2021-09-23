@@ -27,7 +27,8 @@ TEST_CASE("Consumers") {
       pipeline.input(i);
     }
 
-    std::this_thread::sleep_for(100ms);
+    pipeline.wait_until_idle();
+    REQUIRE(pipeline.idle());
 
     REQUIRE_EQ(consumed.size(), input_count);
 
@@ -53,7 +54,8 @@ TEST_CASE("Single-thread Consumers") {
       pipeline->input(i, i);
     }
 
-    std::this_thread::sleep_for(100ms);
+    pipeline->wait_until_idle();
+    REQUIRE(pipeline->idle());
 
     REQUIRE_EQ(consumed.size(), input_count);
 

@@ -10,7 +10,9 @@
 
 #include <array>
 #include <atomic>
+#include <bitset>
 #include <functional>
+#include <limits>
 #include <thread>
 #include <tuple>
 #include <type_traits>
@@ -22,6 +24,16 @@
 #include "util/type_list.hpp"
 
 namespace tdp::detail {
+
+//-------------------------------------------------------------------------------------------------
+// Idle Callback: Each thread notifies its idling state
+//-------------------------------------------------------------------------------------------------
+
+struct idle_callback {
+  virtual void set(std::size_t index) noexcept = 0;
+  virtual void reset(std::size_t index) noexcept = 0;
+  virtual ~idle_callback() = default;
+};
 
 //-------------------------------------------------------------------------------------------------
 // Processing threads
@@ -38,19 +50,31 @@ struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable,  //
   using input_t = std::tuple<InputArgs...>;
   using output_t = std::invoke_result_t<Callable, InputArgs...>;
 
+  const std::size_t _id;
+  idle_callback& _idle;
   Callable _f;
   Queue<input_t>& _input_queue;
   Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
   void operator()() noexcept {
+    _idle.reset(_id);
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
-      if (!val)
-        break;
-      auto&& res = std::apply(_f, std::move(*val));
-      _output_queue.push(std::move(res));
+      if (_input_queue.empty()) {
+        _idle.set(_id);
+        auto val = _input_queue.pop_unless([&] { return _stop.load(); });
+        if (!val)
+          break;
+        _idle.reset(_id);
+        auto&& res = std::apply(_f, std::move(*val));
+        _output_queue.push(std::move(res));
+      } else {
+        auto&& val = _input_queue.pop();
+        auto&& res = std::apply(_f, std::move(val));
+        _output_queue.push(std::move(res));
+      }
     }
+    _idle.set(_id);
     _output_queue.wake();
   }
 };
@@ -60,16 +84,27 @@ template <template <typename...> class Queue, typename Callable>
 struct thread_worker<Queue, jtc::type_list<>, Callable> {
   using output_t = std::invoke_result_t<Callable>;
 
+  const std::size_t _id;
+  idle_callback& _idle;
   Callable _f;
   Queue<output_t>& _output_queue;
   const std::atomic_bool& _pause;
   const std::atomic_bool& _stop;
 
   void operator()() noexcept {
+    _idle.reset(_id);
     while (!_stop) {
-      if (!_pause)
+      if (!_pause) {
         _output_queue.push(std::invoke(_f));
+      } else {
+        _idle.set(_id);
+        while (_pause && !_stop)
+          ;
+        if (!_stop)
+          _idle.reset(_id);
+      }
     }
+    _idle.set(_id);
     _output_queue.wake();
   }
 };
@@ -79,17 +114,28 @@ template <template <typename...> class Queue, typename Input, typename Callable>
 struct thread_worker<Queue, Input, Callable,                           //
     std::enable_if_t<!util::is_instance_of_v<Input, jtc::type_list>>,  //
     std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
+  const std::size_t _id;
+  idle_callback& _idle;
   Callable _f;
   Queue<Input>& _input_queue;
   const std::atomic_bool& _stop;
 
   void operator()() noexcept {
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
-      if (!val)
-        break;
-      std::invoke(_f, std::move(*val));
+      _idle.reset(_id);
+      if (_input_queue.empty()) {
+        _idle.set(_id);
+        auto val = _input_queue.pop_unless([&] { return _stop.load(); });
+        if (!val)
+          break;
+        _idle.reset(_id);
+        std::invoke(_f, std::move(*val));
+      } else {
+        auto&& val = _input_queue.pop();
+        std::invoke(_f, std::move(val));
+      }
     }
+    _idle.set(_id);
   }
 };
 
@@ -100,17 +146,28 @@ struct thread_worker<Queue, jtc::type_list<InputArgs...>, Callable,  //
     std::enable_if_t<std::is_same_v<std::invoke_result_t<Callable, InputArgs...>, void>>> {
   using input_t = std::tuple<InputArgs...>;
 
+  const std::size_t _id;
+  idle_callback& _idle;
   Callable _f;
   Queue<input_t>& _input_queue;
   const std::atomic_bool& _stop;
 
   void operator()() noexcept {
+    _idle.reset(_id);
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
-      if (!val)
-        break;
-      std::apply(_f, std::move(*val));
+      if (_input_queue.empty()) {
+        _idle.set(_id);
+        auto val = _input_queue.pop_unless([&] { return _stop.load(); });
+        if (!val)
+          break;
+        _idle.reset(_id);
+        std::apply(_f, std::move(*val));
+      } else {
+        auto&& val = _input_queue.pop();
+        std::apply(_f, std::move(val));
+      }
     }
+    _idle.set(_id);
   }
 };
 
@@ -121,19 +178,31 @@ struct thread_worker<Queue, Input, Callable,                           //
     std::enable_if_t<!std::is_same_v<std::invoke_result_t<Callable, Input>, void>>> {
   using output_t = std::invoke_result_t<Callable, Input>;
 
+  const std::size_t _id;
+  idle_callback& _idle;
   Callable _f;
   Queue<Input>& _input_queue;
   Queue<output_t>& _output_queue;
   const std::atomic_bool& _stop;
 
   void operator()() noexcept {
+    _idle.reset(_id);
     while (!_stop) {
-      auto val = _input_queue.pop_unless([&] { return _stop.load(); });
-      if (!val)
-        break;
-      auto&& res = std::invoke(_f, std::move(*val));
-      _output_queue.push(std::move(res));
+      if (_input_queue.empty()) {
+        _idle.set(_id);
+        auto val = _input_queue.pop_unless([&] { return _stop.load(); });
+        if (!val)
+          break;
+        _idle.reset(_id);
+        auto&& res = std::invoke(_f, std::move(*val));
+        _output_queue.push(std::move(res));
+      } else {
+        auto&& val = _input_queue.pop();
+        auto&& res = std::invoke(_f, std::move(val));
+        _output_queue.push(std::move(res));
+      }
     }
+    _idle.set(_id);
     _output_queue.wake();
   }
 };
@@ -191,6 +260,55 @@ template <template <typename...> class Queue>
 struct pipeline_output<Queue, void> {};
 
 //-------------------------------------------------------------------------------------------------
+// A mechanism for suspending threads waiting for a pipeline's idle state
+//-------------------------------------------------------------------------------------------------
+
+template <std::size_t N>
+struct pipeline_idler final : idle_callback {
+  std::atomic<std::bitset<N>>& _flags;
+  mutable std::condition_variable _condition{};
+  mutable std::mutex _mutex{};
+
+  pipeline_idler(std::atomic<std::bitset<N>>& flags) noexcept : _flags(flags) {}
+
+  void set(std::size_t index) noexcept override {
+    auto old = _flags.load();
+    auto next = old;
+    do {
+      next = old;
+      next.set(index);
+    } while (!_flags.compare_exchange_weak(old, next));
+
+    if (_flags.load().all()) {
+      notify();
+    }
+  }
+
+  void reset(std::size_t index) noexcept override {
+    auto old = _flags.load();
+    auto next = old;
+    do {
+      next = old;
+      next.reset(index);
+    } while (!_flags.compare_exchange_weak(old, next));
+  }
+
+  void notify() const noexcept {
+    { std::unique_lock lock{_mutex}; }
+    _condition.notify_all();
+  }
+
+  template <typename F>
+  void wait(F&& pred) const noexcept {
+    {
+      std::unique_lock lock{_mutex};
+      _condition.wait(lock, std::forward<F>(pred));
+    }
+    _condition.notify_one();
+  }
+};
+
+//-------------------------------------------------------------------------------------------------
 // Pipeline system
 //-------------------------------------------------------------------------------------------------
 
@@ -230,6 +348,22 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
 
   ~pipeline() { stop_threads(); }
 
+  [[nodiscard]] bool idle() const noexcept {
+    bool empty_queues = true;
+    util::tuple_foreach([&](const auto& queue) { empty_queues &= queue.empty(); }, _queues);
+    if constexpr (sizeof...(InputArgs) == 0) {
+      empty_queues &= !pipeline_input_t::producing();
+    } else {
+      empty_queues &= pipeline_input_t::input_is_empty();
+    }
+    return empty_queues && _idle_threads.load().all();
+  }
+
+  void wait_until_idle() const noexcept {
+    _idler.wait([this] { return idle(); });
+  }
+
+ private:
   template <std::size_t I>
   void init_intermediary_threads(std::tuple<Stages...>& stages) {
     using inputs = util::result_list_t<input_list_t, Stages...>;
@@ -238,6 +372,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     using callable_t = jtc::list_get_t<callables, I>;
 
     _threads[I] = std::thread(thread_worker<Queue, input_t, callable_t>{
+        I,
+        _idler,
         std::move(std::get<I>(stages)),
         std::get<I - 1>(_queues),
         std::get<I>(_queues),
@@ -260,6 +396,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     if constexpr (std::is_same_v<ret_t, void>) {
       // Consumer
       _threads[N - 1] = std::thread(thread_worker<Queue, input_t, callable_t>{
+          N - 1,
+          _idler,
           std::forward<T>(last),
           std::get<N - 2>(_queues),
           _stop,
@@ -267,6 +405,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
     } else {
       // User output
       _threads[N - 1] = std::thread(thread_worker<Queue, input_t, callable_t>{
+          N - 1,
+          _idler,
           std::forward<T>(last),
           std::get<N - 2>(_queues),
           pipeline_output_t::_output_queue,
@@ -286,6 +426,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       if constexpr (N == 1) {
         // Producing directly to output
         _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+            0,
+            _idler,
             std::forward<T>(first),
             pipeline_output_t::_output_queue,
             pipeline_input_t::_paused,
@@ -294,6 +436,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       } else {
         // Producing to another thread
         _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+            0,
+            _idler,
             std::forward<T>(first),
             std::get<0>(_queues),
             pipeline_input_t::_paused,
@@ -307,6 +451,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
         if constexpr (std::is_same_v<ret_t, void>) {
           // Consumer-only pipeline
           _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+              0,
+              _idler,
               std::forward<T>(first),
               pipeline_input_t::_input_queue,
               _stop,
@@ -314,6 +460,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
         } else {
           // Feeding directly to output
           _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+              0,
+              _idler,
               std::forward<T>(first),
               pipeline_input_t::_input_queue,
               pipeline_output_t::_output_queue,
@@ -323,6 +471,8 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       } else {
         // Feeding to a second thread
         _threads[0] = std::thread(thread_worker<Queue, input_t, callable_t>{
+            0,
+            _idler,
             std::forward<T>(first),
             pipeline_input_t::_input_queue,
             std::get<0>(_queues),
@@ -331,11 +481,6 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       }
     }
   }
-
- private:
-  std::atomic_bool _stop = false;
-  tuple_t _queues;
-  std::array<std::thread, N> _threads;
 
   void stop_threads() {
     // Set the "stop token" flag
@@ -355,6 +500,13 @@ struct pipeline<Queue, jtc::type_list<InputArgs...>, Stages...> final
       if (thread.joinable())
         thread.join();
   }
+
+ private:
+  std::atomic_bool _stop = false;
+  tuple_t _queues;
+  std::array<std::thread, N> _threads;
+  std::atomic<std::bitset<N>> _idle_threads{std::numeric_limits<unsigned long long>::max()};
+  pipeline_idler<N> _idler{_idle_threads};
 };
 
 //-------------------------------------------------------------------------------------------------

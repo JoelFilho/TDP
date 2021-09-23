@@ -21,6 +21,7 @@ TEST_CASE("Producers") {
 
   SUBCASE("pause() actually pauses production, and producing() returns false") {
     std::this_thread::sleep_for(50ms);
+    REQUIRE_FALSE(pipeline.idle());
     pipeline.pause();
     REQUIRE_FALSE(pipeline.producing());
     REQUIRE_NE(produced, 0);
@@ -37,6 +38,7 @@ TEST_CASE("Producers") {
       std::this_thread::sleep_for(10ms);
 
       REQUIRE_NE(old_produced, produced);
+      REQUIRE_FALSE(pipeline.idle());
     }
   }
 
@@ -44,6 +46,7 @@ TEST_CASE("Producers") {
     std::this_thread::sleep_for(10ms);
     while (produced < 10)
       /* Wait until there's at least 10 produced items in the list */;
+    REQUIRE_FALSE(pipeline.idle());
     pipeline.pause();
     std::this_thread::sleep_for(10ms);
 
@@ -61,5 +64,6 @@ TEST_CASE("Producers") {
     }
 
     REQUIRE_EQ(produced, consumed);
+    REQUIRE(pipeline.idle());
   }
 }

@@ -50,6 +50,11 @@ int main() {
     std::cout << "Pipeline is empty, can't get another result!\n";
   }
 
+  // We can verify all threads on the pipeline are waiting for input with idle()
+  // Note: idle() may return false if any pipeline stage hasn't registered its idle state yet.
+  // To guarantee the pipeline is idle before exitting, see the next example.
+  std::cout << "pipeline.idle() = " << std::boolalpha << pipeline.idle() << std::endl;
+
   // At the end, we don't need to do anything.
   // The pipeline stops all threads when its destructor is called.
 }
